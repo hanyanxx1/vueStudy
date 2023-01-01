@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <!-- <script src="./vue3.js"></script> -->
+    <script src="https://unpkg.com/vue@next"></script>
+</head>
+<body>
+    <div id="counter">
+        <!--vue的语法，告诉vue，这个里面放了一个变量 -->
+        <p>{{num}}</p>
+        <p>{{uname}}</p>
+    </div>
+    <script>
+        const Counter={//配置对象
+            data:function(){
+                return{
+                    num:0,
+                    uname:"张三"
+                }
+            },
+        }
+       let app=Vue.createApp(Counter).mount('#counter')//创建应用，将配置对象传入，mount进行挂载，和上面的元素相关联
+       console.log(app);
+       //app.num=4--》页面上面的num也会随之修改，数据的双向绑定
+       //使用npm，需要先安装node
+    </script>
+</body>
+</html>
