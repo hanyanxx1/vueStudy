@@ -51,8 +51,8 @@ function createGetter(isReadonly = false, shallow = false) {
 
     const res = Reflect.get(target, key, receiver);
     if (!isReadonly) {
-      // // 收集依赖，等会数据变化后更新对应的视图
-      // track(target, TrackOpTypes.GET, key);
+      // 收集依赖，等会数据变化后更新对应的视图
+      track(target, TrackOpTypes.GET, key);
     }
     if (shallow) {
       return res;
