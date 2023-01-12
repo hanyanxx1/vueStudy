@@ -14,11 +14,11 @@
       let { effect, reactive } = VueReactivity;
       let state = reactive({ name: "zf", age: 12, arr: [1, 2, 3] });
       effect(() => {
-        app.innerHTML = state.name + ":" + state.age;
+        app.innerHTML = state.arr;
       });
-      // setTimeout(() => {
-      //   state.arr[100] = 1;
-      // }, 1000);
+      setTimeout(() => {
+        state.arr[100] = 1;
+      }, 1000);
     </script>
   </body>
 </html>
