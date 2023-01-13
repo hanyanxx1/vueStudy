@@ -11,16 +11,16 @@
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <div id="app"></div>
     <script>
-      let { effect, reactive, ref, shallowRef } = VueReactivity;
-      let name = ref("zf"); // 将普通的类型 转化成一个对象，这个对象中有value属性 指向原来的值
-
+      let { effect, reactive, ref, shallowRef, toRef, toRefs } = VueReactivity;
+      let proxy = reactive({ name: "zf", age: 11 });
+      //   let r1 = toRef(proxy, "name");
+      //   let r2 = toRef(proxy, "age");
+      let { name, age } = toRefs(proxy);
       effect(() => {
-        // 默认会执行  -》 会依赖收集 收集effect
-        app.innerHTML = name.value; // track
+        app.innerHTML = name.value + age.value;
       });
-
       setTimeout(() => {
-        name.value = "jw"; // trigger
+        name.value = "jw";
       }, 1000);
     </script>
   </body>

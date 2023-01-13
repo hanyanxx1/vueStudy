@@ -101,7 +101,6 @@ export function trigger(target, type, key?, newValue?, oldValue?) {
         }
     }
   }
-  console.log(effects);
   effects.forEach((effect: any) => effect());
 }
 // weakMap {name:'zf',age:12}  (map) =>{name => set(effect),age => set(effect)}

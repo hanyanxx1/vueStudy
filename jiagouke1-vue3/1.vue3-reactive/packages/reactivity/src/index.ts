@@ -7,4 +7,4 @@ export {
 
 export { effect } from "./effect";
 
-export { ref, shallowRef } from "./ref";
+export { ref, shallowRef, toRef, toRefs } from "./ref";
