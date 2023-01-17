@@ -1,11 +1,29 @@
+import { effect } from "@vue/reactivity";
 import { ShapeFlags } from "@vue/shared";
 import { createAppAPI } from "./apiCreateApp";
 import { createComponentInstance, setupComponent } from "./component";
 
 export function createRenderer(rendererOptions) {
-  const setupRenderEfect = (instance) => {
+  const setupRenderEfect = (instance, container) => {
     // 需要创建一个effect 在effect中调用 render方法，这样render方法中拿到的数据会收集这个effect，属性更新时effect会重新执行
-    instance.render();
+    instance.update = effect(function componentEffect() {
+      if (!instance.isMounted) {
+        // 初次渲染
+        let proxyToUse = instance.proxy;
+        // $vnode  _vnode
+        // vnode  subTree
+        let subTree = (instance.subTree = instance.render.call(
+          proxyToUse,
+          proxyToUse
+        ));
+
+        // 用render函数的返回值 继续渲染
+        patch(null, subTree, container);
+        instance.isMounted = true;
+      } else {
+        // 更新逻辑
+      }
+    });
   };
   const mountComponent = (initialVNode, container) => {
     // 组件的渲染流程  最核心的就是调用 setup拿到返回值，获取render函数返回的结果来进行渲染
@@ -15,7 +33,7 @@ export function createRenderer(rendererOptions) {
     // 2.需要的数据解析到实例上
     setupComponent(instance);
     // 3.创建一个effect 让render函数执行
-    setupRenderEfect(instance);
+    setupRenderEfect(instance, container);
   };
   const processComponent = (n1, n2, container) => {
     if (n1 == null) {
@@ -29,7 +47,8 @@ export function createRenderer(rendererOptions) {
   const patch = (n1, n2, container) => {
     // 针对不同类型 做初始化操作
     const { shapeFlag } = n2;
-    if (shapeFlag & shapeFlag.ELEMENT) {
+    if (shapeFlag & ShapeFlags.ELEMENT) {
+      console.log(n1, n2, container);
     } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
       processComponent(n1, n2, container);
     }
