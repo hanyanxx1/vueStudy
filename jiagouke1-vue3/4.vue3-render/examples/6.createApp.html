@@ -12,8 +12,12 @@
     <script>
       let { createApp } = VueRuntimeDOM;
       let App = {
-        render() {
-          console.log("render");
+        // getCurrentInstance = > instance
+        setup(props, context) {
+          // instance 里面包含的内容 会提取一些传递给context
+          return () => {
+            console.log('setup')
+          };
         },
       };
       let app = createApp(App, { name: "zf", age: 12 });
