@@ -17,6 +17,7 @@ export function createRenderer(rendererOptions) {
     createComment: hostCreateComment,
     setText: hostSetText,
     setElementText: hostSetElementText,
+    nextSibling: hostNextSibling,
   } = rendererOptions;
 
   // -------------------组件----------------------
@@ -42,6 +43,11 @@ export function createRenderer(rendererOptions) {
           // ts 一周
           // 组件库
           // 更新逻辑
+          const prevTree = instance.subTree;
+          let proxyToUse = instance.proxy;
+          const nextTree = instance.render.call(proxyToUse, proxyToUse);
+
+          patch(prevTree, nextTree, container);
         }
       },
       {
@@ -76,7 +82,7 @@ export function createRenderer(rendererOptions) {
       patch(null, child, container);
     }
   };
-  const mountElement = (vnode, container) => {
+  const mountElement = (vnode, container, anchor = null) => {
     // 递归渲染
     const { props, shapeFlag, type, children } = vnode;
     let el = (vnode.el = hostCreateElement(type));
@@ -91,13 +97,40 @@ export function createRenderer(rendererOptions) {
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       mountChildren(children, el);
     }
-    hostInsert(el, container);
+    hostInsert(el, container, anchor);
   };
-  const processElement = (n1, n2, container) => {
+
+  const patchProps = (oldProps, newProps, el) => {
+    if (oldProps !== newProps) {
+      for (let key in newProps) {
+        const prev = oldProps[key];
+        const next = newProps[key];
+        if (prev !== next) {
+          hostPatchProp(el, key, prev, next);
+        }
+      }
+      for (const key in oldProps) {
+        if (!(key in newProps)) {
+          hostPatchProp(el, key, oldProps[key], null);
+        }
+      }
+    }
+  };
+  const patchElement = (n1, n2, container) => {
+    // 元素是相同节点
+    let el = (n2.el = n1.el);
+
+    // 更新属性  更新儿子
+    const oldProps = n1.props || {};
+    const newProps = n2.props || {};
+
+    patchProps(oldProps, newProps, el);
+  };
+  const processElement = (n1, n2, container, anchor) => {
     if (n1 == null) {
-      mountElement(n2, container);
+      mountElement(n2, container, anchor);
     } else {
-      // 元素更新
+      patchElement(n1, n2, container);
     }
   };
   //----------------- 处理元素-----------------
@@ -110,16 +143,29 @@ export function createRenderer(rendererOptions) {
   };
   // -----------------文本处理-----------------
 
-  const patch = (n1, n2, container) => {
+  const isSameVNodeType = (n1, n2) => {
+    return n1.type === n2.type && n1.key === n2.key;
+  };
+  const unmount = (n1) => {
+    hostRemove(n1.el);
+  };
+  const patch = (n1, n2, container, anchor = null) => {
     // 针对不同类型 做初始化操作
     const { shapeFlag, type } = n2;
+
+    if (n1 && !isSameVNodeType(n1, n2)) {
+      // 把以前的删掉 换成n2
+      anchor = hostNextSibling(n1.el);
+      unmount(n1);
+      n1 = null; // 重新渲染n2 对应的内容
+    }
     switch (type) {
       case Text:
         processText(n1, n2, container);
         break;
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          processElement(n1, n2, container);
+          processElement(n1, n2, container, anchor);
         } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
           processComponent(n1, n2, container);
         }
