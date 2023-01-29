@@ -116,6 +116,144 @@ export function createRenderer(rendererOptions) {
       }
     }
   };
+  const patchKeyedChildren = (c1, c2, el) => {
+    // Vue3 对特殊情况进行优化
+
+    let i = 0; // 都是默认从头开始比对
+    let e1 = c1.length - 1;
+    let e2 = c2.length - 1;
+
+    // 尽可能较少比对的区域
+
+    // sync from start 从头开始一个个比 遇到不同的就停止了
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[i];
+      const n2 = c2[i];
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, el);
+      } else {
+        break;
+      }
+      i++;
+    }
+
+    // sync from end
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[e1];
+      const n2 = c2[e2];
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, el);
+      } else {
+        break;
+      }
+      e1--;
+      e2--;
+    }
+
+    // common sequence + mount  有一方已经完全比对完成了
+    // 比较后
+    // 怎么确定是要挂载呢？
+    // 如果完成后 最终i的值大于e1 说明老的少
+    if (i > e1) {
+      // 老的少 新的多  有一方已经完全比对完成了
+      if (i <= e2) {
+        // 表示有新增的部分
+        const nextPos = e2 + 1;
+        // 想知道是向前插入 还是向后插入
+        const anchor = nextPos < c2.length ? c2[nextPos].el : null;
+        while (i <= e2) {
+          patch(null, c2[i], el, anchor); // 只是向后追加
+          i++;
+        }
+      }
+    } else if (i > e2) {
+      // 老的多新的少    有一方已经完全比对完成了
+      while (i <= e1) {
+        unmount(c1[i]);
+        i++;
+      }
+    } else {
+      // 乱序比较 ， 需要尽可能复用  用新的元素做成一个映射表去老的里找，一样的就复用， 不一样的要不插入 要不删除
+
+      let s1 = i;
+      let s2 = i;
+
+      // vue3 用的是新的做的映射表 vue2 用的是老的做的映射表
+      const keyToNewIndexMap = new Map();
+
+      for (let i = s2; i <= e2; i++) {
+        const childVNode = c2[i];
+        keyToNewIndexMap.set(childVNode.key, i);
+      }
+
+      // 去老的里面查找 看用没有复用的
+      for (let i = s1; i <= e1; i++) {
+        const oldVnode = c1[i];
+        let newIndex = keyToNewIndexMap.get(oldVnode.key);
+        if (newIndex === undefined) {
+          // 老的里的不在新的中
+          unmount(oldVnode);
+        } else {
+          // 新老的比对 , 比较完毕后位置有差异
+          patch(oldVnode, c2[newIndex], el);
+        }
+      }
+
+      // 最后就是移动节点，并且将新增的节点插入
+      // 最长递增子序列
+    }
+  };
+
+  const unmountChildren = (children) => {
+    for (let i = 0; i < children.length; i++) {
+      unmount(children[i]);
+    }
+  };
+  const patchChildren = (n1, n2, el) => {
+    const c1 = n1.children; // 老儿子
+    const c2 = n2.children; // 新儿子
+
+    // 老的有儿子 新的没儿子  新的有儿子老的没儿子  新老都有儿子  新老都是文本
+
+    const prevShapeFlag = n1.shapeFlag;
+    const shapeFlag = n2.shapeFlag; // 分别标识过儿子的状况
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      // case1:现在是文本之前是数组
+      // 老的是n个孩子 但是新的是文本
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1); // 如果c1 中包含组件会调用组件的销毁方法
+      }
+
+      // 两个人都是文本情况
+      if (c2 !== c1) {
+        // case2：两个都是文本
+        hostSetElementText(el, c2);
+      }
+    } else {
+      // 现在是数组   上一次有可能是文本 或者数组
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        // case3:两个都是数组
+        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 当前是数组 之前是数组
+          // 两个数组的比对  -》 diff算法  ***********************
+
+          patchKeyedChildren(c1, c2, el);
+        } else {
+          // 没有孩子  特殊情况 当前是null ， 删除掉老的
+          unmountChildren(c1);
+        }
+      } else {
+        // 上一次是文本
+        if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+          // case4 现在是数组 之前是文本
+          hostSetElementText(el, "");
+        }
+        if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          mountChildren(c2, el);
+        }
+      }
+    }
+  };
   const patchElement = (n1, n2, container) => {
     // 元素是相同节点
     let el = (n2.el = n1.el);
@@ -125,6 +263,8 @@ export function createRenderer(rendererOptions) {
     const newProps = n2.props || {};
 
     patchProps(oldProps, newProps, el);
+
+    patchChildren(n1, n2, el);
   };
   const processElement = (n1, n2, container, anchor) => {
     if (n1 == null) {
