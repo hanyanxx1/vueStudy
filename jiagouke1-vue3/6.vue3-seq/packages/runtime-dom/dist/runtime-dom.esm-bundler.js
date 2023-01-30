@@ -841,6 +841,8 @@ function createRenderer(rendererOptions) {
                 const childVNode = c2[i];
                 keyToNewIndexMap.set(childVNode.key, i);
             }
+            const toBePatched = e2 - s2 + 1;
+            const newIndexToOldIndexMap = new Array(toBePatched).fill(0);
             // 去老的里面查找 看用没有复用的
             for (let i = s1; i <= e1; i++) {
                 const oldVnode = c1[i];
@@ -851,7 +853,25 @@ function createRenderer(rendererOptions) {
                 }
                 else {
                     // 新老的比对 , 比较完毕后位置有差异
+                    // 新的和旧的关系 索引的关系
+                    newIndexToOldIndexMap[newIndex - s2] = i + 1;
                     patch(oldVnode, c2[newIndex], el);
+                }
+            }
+            for (let i = toBePatched - 1; i >= 0; i--) {
+                let currentIndex = i + s2; // 找到h的索引
+                let child = c2[currentIndex]; // 找到h对应的节点
+                // 第一次插入h 后 h是一个虚拟节点，同时插入后 虚拟节点会
+                let anchor = currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+                if (newIndexToOldIndexMap[i] == 0) {
+                    // 如果自己是0说明没有被patch过
+                    patch(null, child, el, anchor);
+                }
+                else {
+                    // [1,2,3,4,5,6]
+                    // [1,6,2,3,4,5]  // 最长递增子序列
+                    // 这种操作 需要将节点全部的移动一遍， 我希望可以尽可能的少移动   [5,3,4,0]
+                    hostInsert(child.el, el, anchor);
                 }
             }
             // 最后就是移动节点，并且将新增的节点插入
