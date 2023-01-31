@@ -861,6 +861,9 @@ var VueRuntimeDOM = (function (exports) {
                       patch(oldVnode, c2[newIndex], el);
                   }
               }
+              // [5,3,4,0] => [1,2]
+              let increasingNewIndexSequence = getSequence(newIndexToOldIndexMap);
+              let j = increasingNewIndexSequence.length - 1;
               for (let i = toBePatched - 1; i >= 0; i--) {
                   let currentIndex = i + s2; // 找到h的索引
                   let child = c2[currentIndex]; // 找到h对应的节点
@@ -874,13 +877,72 @@ var VueRuntimeDOM = (function (exports) {
                       // [1,2,3,4,5,6]
                       // [1,6,2,3,4,5]  // 最长递增子序列
                       // 这种操作 需要将节点全部的移动一遍， 我希望可以尽可能的少移动   [5,3,4,0]
-                      hostInsert(child.el, el, anchor);
+                      // 3 2 1 0
+                      // [1,2]    2
+                      if (i != increasingNewIndexSequence[j]) {
+                          hostInsert(child.el, el, anchor); // 操作当前的d 以d下一个作为参照物插入
+                      }
+                      else {
+                          j--; // 跳过不需要移动的元素， 为了减少移动操作 需要这个最长递增子序列算法
+                      }
                   }
               }
               // 最后就是移动节点，并且将新增的节点插入
               // 最长递增子序列
           }
       };
+      function getSequence(arr) {
+          // 最终的结果是索引
+          const len = arr.length;
+          const result = [0]; // 索引  递增的序列 用二分查找性能高
+          const p = arr.slice(0); // 里面内容无所谓 和 原本的数组相同 用来存放索引
+          let start;
+          let end;
+          let middle;
+          for (let i = 0; i < len; i++) {
+              const arrI = arr[i];
+              if (arrI !== 0) {
+                  let resultLastIndex = result[result.length - 1];
+                  // 取到索引对应的值
+                  if (arr[resultLastIndex] < arrI) {
+                      p[i] = resultLastIndex; // 标记当前前一个对应的索引
+                      result.push(i);
+                      // 当前的值 比上一个人大 ，直接push ，并且让这个人得记录他的前一个
+                      continue;
+                  }
+                  // 二分查找 找到比当前值大的那一个
+                  start = 0;
+                  end = result.length - 1;
+                  while (start < end) {
+                      // 重合就说明找到了 对应的值
+                      middle = ((start + end) / 2) | 0; // 找到中间位置的前一个
+                      if (arr[result[middle]] < arrI) {
+                          start = middle + 1;
+                      }
+                      else {
+                          end = middle;
+                      } // 找到结果集中，比当前这一项大的数
+                  }
+                  // start / end 就是找到的位置
+                  if (arrI < arr[result[start]]) {
+                      // 如果相同 或者 比当前的还大就不换了
+                      if (start > 0) {
+                          // 才需要替换
+                          p[i] = result[start - 1]; // 要将他替换的前一个记住
+                      }
+                      result[start] = i;
+                  }
+              }
+          }
+          let len1 = result.length; // 总长度
+          let last = result[len1 - 1]; // 找到了最后一项
+          while (len1-- > 0) {
+              // 根据前驱节点一个个向前查找
+              result[len1] = last;
+              last = p[last];
+          }
+          return result;
+      } // O(nlogn) 性能比较好 O(n^2)
       const unmountChildren = (children) => {
           for (let i = 0; i < children.length; i++) {
               unmount(children[i]);
