@@ -1,6 +1,7 @@
 import { effect } from "@vue/reactivity";
 import { ShapeFlags } from "@vue/shared";
 import { createAppAPI } from "./apiCreateApp";
+import { invokeArrayFns } from "./apiLifecycle";
 import { createComponentInstance, setupComponent } from "./component";
 import { queueJob } from "./scheduler";
 import { normalizeVNode, Text } from "./vnode";
@@ -27,6 +28,12 @@ export function createRenderer(rendererOptions) {
       function componentEffect() {
         if (!instance.isMounted) {
           // 初次渲染
+          let { bm, m } = instance;
+          
+          if (bm) {
+            invokeArrayFns(bm);
+          }
+
           let proxyToUse = instance.proxy;
           // $vnode  _vnode
           // vnode  subTree
@@ -38,16 +45,31 @@ export function createRenderer(rendererOptions) {
           // 用render函数的返回值 继续渲染
           patch(null, subTree, container);
           instance.isMounted = true;
+
+          if (m) {
+            // mounted 要求必须在我们子组件完成后才会调用自己
+            invokeArrayFns(m);
+          }
         } else {
           // diff算法  （核心 diff + 序列优化 watchApi 生命周期）
           // ts 一周
           // 组件库
           // 更新逻辑
+          let { bu, u } = instance;
+
+          if (bu) {
+            invokeArrayFns(bu);
+          }
+
           const prevTree = instance.subTree;
           let proxyToUse = instance.proxy;
           const nextTree = instance.render.call(proxyToUse, proxyToUse);
 
           patch(prevTree, nextTree, container);
+
+          if (u) {
+            invokeArrayFns(u);
+          }
         }
       },
       {

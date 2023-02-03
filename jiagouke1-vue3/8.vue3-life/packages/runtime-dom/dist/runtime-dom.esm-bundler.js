@@ -614,6 +614,14 @@ function setupComponent(instance) {
         setupStatefulComponent(instance);
     }
 }
+let currentInstance = null;
+let setCurrentInstance = (instance) => {
+    currentInstance = instance;
+};
+let getCurrentInstance = () => {
+    // 在setuop中获取当前实例
+    return currentInstance;
+};
 function setupStatefulComponent(instance) {
     // 1.代理 传递给render函数的参数
     instance.proxy = new Proxy(instance.ctx, PublicInstanceProxyHandlers);
@@ -622,8 +630,10 @@ function setupStatefulComponent(instance) {
     let { setup } = Component;
     // ------ 没有setup------
     if (setup) {
+        currentInstance = instance;
         let setupContext = createSetupContext(instance);
         const setupResult = setup(instance.props, setupContext); // instance 中props attrs slots emit expose 会被提取出来，因为在开发过程中会使用这些属性
+        currentInstance = null;
         handleSetupResult(instance, setupResult);
     }
     else {
@@ -663,6 +673,37 @@ function createSetupContext(instance) {
 // context 就4个参数 是为了开发时使用的
 // proxy 主要为了取值方便  =》 proxy.xxxx
 
+const injectHook = (type, hook, target) => {
+    // 在这个函数中保留了实例 闭包
+    if (!target) {
+        return console.warn("injection APIs can only be used during execution of setup().");
+    }
+    else {
+        const hooks = target[type] || (target[type] = []);
+        const wrap = () => {
+            setCurrentInstance(target); // currentInstance = 自己的
+            hook.call(target);
+            setCurrentInstance(null);
+        };
+        hooks.push(wrap);
+    }
+};
+const createHook = (lifecycle) => (hook, target = currentInstance) => {
+    // target用来表示他是哪个实例的钩子
+    // 给当前实例 增加 对应的生命周期 即可
+    injectHook(lifecycle, hook, target);
+};
+const invokeArrayFns = (fns) => {
+    for (let i = 0; i < fns.length; i++) {
+        // vue2中也是 调用是 让函数依次执行
+        fns[i]();
+    }
+};
+const onBeforeMount = createHook("bm" /* LifeCycleHooks.BEFORE_MOUNT */);
+const onMounted = createHook("m" /* LifeCycleHooks.MOUNTED */);
+const onBeforeUpdate = createHook("bu" /* LifeCycleHooks.BEFORE_UPDATE */);
+const onUpdated = createHook("u" /* LifeCycleHooks.UPDATED */);
+
 let queue = [];
 function queueJob(job) {
     if (!queue.includes(job)) {
@@ -697,6 +738,10 @@ function createRenderer(rendererOptions) {
         instance.update = effect(function componentEffect() {
             if (!instance.isMounted) {
                 // 初次渲染
+                let { bm, m } = instance;
+                if (bm) {
+                    invokeArrayFns(bm);
+                }
                 let proxyToUse = instance.proxy;
                 // $vnode  _vnode
                 // vnode  subTree
@@ -704,16 +749,27 @@ function createRenderer(rendererOptions) {
                 // 用render函数的返回值 继续渲染
                 patch(null, subTree, container);
                 instance.isMounted = true;
+                if (m) {
+                    // mounted 要求必须在我们子组件完成后才会调用自己
+                    invokeArrayFns(m);
+                }
             }
             else {
                 // diff算法  （核心 diff + 序列优化 watchApi 生命周期）
                 // ts 一周
                 // 组件库
                 // 更新逻辑
+                let { bu, u } = instance;
+                if (bu) {
+                    invokeArrayFns(bu);
+                }
                 const prevTree = instance.subTree;
                 let proxyToUse = instance.proxy;
                 const nextTree = instance.render.call(proxyToUse, proxyToUse);
                 patch(prevTree, nextTree, container);
+                if (u) {
+                    invokeArrayFns(u);
+                }
             }
         }, {
             scheduler: queueJob,
@@ -1102,5 +1158,5 @@ function createApp(rootComponent, rootProps = null) {
 // 用户调用的是runtime-dom  -> runtime-core
 // runtime-dom 是为了解决平台差异 （浏览器的）
 
-export { computed, createApp, createRenderer, effect, h, reactive, readonly, ref, shallowReactive, shallowReadonly, shallowRef, toRef, toRefs };
+export { computed, createApp, createRenderer, effect, getCurrentInstance, h, onBeforeMount, onBeforeUpdate, onMounted, onUpdated, reactive, readonly, ref, shallowReactive, shallowReadonly, shallowRef, toRef, toRefs };
 //# sourceMappingURL=runtime-dom.esm-bundler.js.map
