@@ -1,0 +1,16 @@
+{
+  "name": "mini-vue",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+  },
+  "keywords": [],
+  "author": "cuixiaorui",
+  "license": "ISC",
+  "dependencies": {
+    "@mini-vue/compiler-core": "workspace:^1.0.0",
+    "@mini-vue/runtime-dom": "workspace:^1.0.0",
+    "@mini-vue/shared": "workspace:^1.0.0"
+  }
+}
