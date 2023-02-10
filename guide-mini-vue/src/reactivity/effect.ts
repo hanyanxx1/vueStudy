@@ -11,7 +11,7 @@ class ReactiveEffect {
     // 执行的时候给全局的 activeEffect 赋值
     // 利用全局属性来获取当前的 effect
     activeEffect = this as any;
-    this._fn();
+    return this._fn();
   }
 }
 
@@ -46,4 +46,5 @@ export function trigger(target, key) {
 export function effect(fn) {
   const _effect = new ReactiveEffect(fn);
   _effect.run();
+  return _effect.run.bind(_effect);
 }
