@@ -1,6 +1,7 @@
 import { extend } from "../shared/src";
 
 let activeEffect = void 0;
+let shouldTrack;
 const targetMap = new WeakMap();
 
 class ReactiveEffect {
@@ -13,10 +14,32 @@ class ReactiveEffect {
   }
 
   run() {
+    console.log("run");
+    // 运行 run 的时候，可以控制 要不要执行后续收集依赖的一步
+    // 目前来看的话，只要执行了 fn 那么就默认执行了收集依赖
+    // 这里就需要控制了
+
+    // 是不是收集依赖的变量
+
+    // 执行 fn  但是不收集依赖
+    if (!this.active) {
+      return this._fn();
+    }
+
+    // 执行 fn  收集依赖
+    // 可以开始收集依赖了
+    shouldTrack = true;
+
     // 执行的时候给全局的 activeEffect 赋值
     // 利用全局属性来获取当前的 effect
     activeEffect = this as any;
-    return this._fn();
+    // 执行用户传入的 fn
+    console.log("执行用户传入的 fn");
+    const result = this._fn();
+    // 重置
+    shouldTrack = false;
+
+    return result;
   }
 
   stop() {
@@ -33,6 +56,10 @@ class ReactiveEffect {
 }
 
 export function track(target, key) {
+  if (!isTracking()) {
+    return;
+  }
+
   // 1. 先基于 target 找到对应的 dep
   // 如果是第一次的话，那么就需要初始化
   let depsMap = targetMap.get(target);
@@ -48,7 +75,7 @@ export function track(target, key) {
     depsMap.set(key, dep);
   }
 
-  if(!activeEffect) return;
+  if (dep.has(activeEffect)) return;
 
   dep.add(activeEffect);
   (activeEffect as any).deps.push(dep);
@@ -68,9 +95,13 @@ export function trigger(target, key) {
 }
 
 function cleanupEffect(effect) {
-  effect.deps.forEach((dep: any) => {
+  // 找到所有依赖这个 effect 的响应式对象
+  // 从这些响应式对象里面把 effect 给删除掉
+  effect.deps.forEach((dep) => {
     dep.delete(effect);
   });
+
+  effect.deps.length = 0;
 }
 
 export function effect(fn, options: any = {}) {
@@ -87,4 +118,8 @@ export function effect(fn, options: any = {}) {
 
 export function stop(runner) {
   runner.effect.stop();
+}
+
+function isTracking() {
+  return shouldTrack && activeEffect !== undefined;
 }
