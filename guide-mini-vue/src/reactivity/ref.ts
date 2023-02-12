@@ -1,11 +1,12 @@
-import { isTracking, trackEffects, triggerEffects } from "./effect";
-import { hasChanged, isObject } from "../shared/src";
+import { trackEffects, triggerEffects, isTracking } from "./effect";
+import { isObject, hasChanged } from "../shared/src";
 import { reactive } from "./reactive";
 
 export class RefImpl {
   private _rawValue: any;
   private _value: any;
   public dep;
+  public __v_isRef = true;
 
   constructor(value) {
     this._rawValue = value;
@@ -43,7 +44,9 @@ function convert(value) {
 }
 
 function createRef(value) {
-  return new RefImpl(value);
+  const refImpl = new RefImpl(value);
+
+  return refImpl;
 }
 
 export function triggerRefValue(ref) {
@@ -54,4 +57,13 @@ export function trackRefValue(ref) {
   if (isTracking()) {
     trackEffects(ref.dep);
   }
+}
+
+// 把 ref 里面的值拿到
+export function unRef(ref) {
+  return isRef(ref) ? ref.value : ref;
+}
+
+export function isRef(value) {
+  return !!value.__v_isRef;
 }
