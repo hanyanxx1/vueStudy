@@ -1,6 +1,6 @@
 import { extend } from "../shared/src";
 
-let activeEffect = void 0;
+let activeEffect;
 let shouldTrack;
 const targetMap = new WeakMap();
 
@@ -55,45 +55,6 @@ class ReactiveEffect {
   }
 }
 
-export function track(target, key) {
-  if (!isTracking()) {
-    return;
-  }
-
-  // 1. 先基于 target 找到对应的 dep
-  // 如果是第一次的话，那么就需要初始化
-  let depsMap = targetMap.get(target);
-  if (!depsMap) {
-    // 初始化 depsMap 的逻辑
-    depsMap = new Map();
-    targetMap.set(target, depsMap);
-  }
-
-  let dep = depsMap.get(key);
-  if (!dep) {
-    dep = new Set();
-    depsMap.set(key, dep);
-  }
-
-  if (dep.has(activeEffect)) return;
-
-  dep.add(activeEffect);
-  (activeEffect as any).deps.push(dep);
-}
-
-export function trigger(target, key) {
-  const depsMap = targetMap.get(target);
-  const dep = depsMap.get(key);
-
-  for (const effect of dep) {
-    if (effect.scheduler) {
-      effect.scheduler();
-    } else {
-      effect.run();
-    }
-  }
-}
-
 function cleanupEffect(effect) {
   // 找到所有依赖这个 effect 的响应式对象
   // 从这些响应式对象里面把 effect 给删除掉
@@ -120,6 +81,54 @@ export function stop(runner) {
   runner.effect.stop();
 }
 
-function isTracking() {
+export function track(target, key) {
+  if (!isTracking()) {
+    return;
+  }
+
+  // 1. 先基于 target 找到对应的 dep
+  // 如果是第一次的话，那么就需要初始化
+  let depsMap = targetMap.get(target);
+  if (!depsMap) {
+    // 初始化 depsMap 的逻辑
+    depsMap = new Map();
+    targetMap.set(target, depsMap);
+  }
+
+  let dep = depsMap.get(key);
+
+  if (!dep) {
+    dep = new Set();
+
+    depsMap.set(key, dep);
+  }
+
+  trackEffects(dep);
+}
+
+export function trackEffects(dep) {
+  if (!dep.has(activeEffect)) {
+    dep.add(activeEffect);
+    activeEffect.deps.push(dep);
+  }
+}
+
+export function trigger(target, key) {
+  const depsMap = targetMap.get(target);
+  const dep = depsMap.get(key);
+  triggerEffects(dep);
+}
+
+export function isTracking() {
   return shouldTrack && activeEffect !== undefined;
+}
+
+export function triggerEffects(dep) {
+  for (const effect of dep) {
+    if (effect.scheduler) {
+      effect.scheduler();
+    } else {
+      effect.run();
+    }
+  }
 }
