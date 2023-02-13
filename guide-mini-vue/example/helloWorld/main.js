@@ -1,3 +1,4 @@
+import { createApp } from "../../lib/guide-minivue.esm.js";
 import App from "./App.js";
 
 const rootContainer = document.querySelector("#root");
