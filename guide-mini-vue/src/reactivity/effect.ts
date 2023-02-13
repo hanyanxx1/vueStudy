@@ -4,7 +4,7 @@ let activeEffect;
 let shouldTrack;
 const targetMap = new WeakMap();
 
-class ReactiveEffect {
+export class ReactiveEffect {
   private _fn: any;
   active = true;
   deps = [];
