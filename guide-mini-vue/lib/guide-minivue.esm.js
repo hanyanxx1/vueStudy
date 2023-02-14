@@ -30,17 +30,114 @@ const h = (type, props = null, children = []) => {
     return createVNode(type, props, children);
 };
 
+const isObject = (val) => {
+    return val !== null && typeof val === "object";
+};
+function hasOwn(val, key) {
+    return Object.prototype.hasOwnProperty.call(val, key);
+}
+
+const targetMap = new WeakMap();
+function trigger(target, key) {
+    const depsMap = targetMap.get(target);
+    const dep = depsMap.get(key);
+    triggerEffects(dep);
+}
+function triggerEffects(dep) {
+    for (const effect of dep) {
+        if (effect.scheduler) {
+            effect.scheduler();
+        }
+        else {
+            effect.run();
+        }
+    }
+}
+
+const get = createGetter();
+const set = createSetter();
+const readonlyGet = createGetter(true);
+const shallowReadonlyGet = createGetter(true, true);
+function createGetter(isReadonly = false, shallow = false) {
+    return function get(target, key) {
+        if (key === "__v_isReactive" /* ReactiveFlags.IS_REACTIVE */) {
+            return !isReadonly;
+        }
+        else if (key === "__v_isReadonly" /* ReactiveFlags.IS_READONLY */) {
+            return isReadonly;
+        }
+        const res = Reflect.get(target, key);
+        if (shallow) {
+            return res;
+        }
+        if (isObject(res)) {
+            // 把内部所有的是 object 的值都用 reactive 包裹，变成响应式对象
+            // 如果说这个 res 值是一个对象的话，那么我们需要把获取到的 res 也转换成 reactive
+            // res 等于 target[key]
+            return isReadonly ? readonly(res) : reactive(res);
+        }
+        return res;
+    };
+}
+function createSetter() {
+    return function set(target, key, value) {
+        const res = Reflect.set(target, key, value);
+        trigger(target, key);
+        return res;
+    };
+}
+const mutableHandlers = {
+    get,
+    set,
+};
+const readonlyHandlers = {
+    get: readonlyGet,
+    set(target, key, value) {
+        // readonly 的响应式对象不可以修改值
+        console.warn(`Set operation on key "${String(key)}" failed: target is readonly.`, target);
+        return true;
+    },
+};
+const shallowReadonlyHandlers = {
+    get: shallowReadonlyGet,
+    set(target, key) {
+        // readonly 的响应式对象不可以修改值
+        console.warn(`Set operation on key "${String(key)}" failed: target is readonly.`, target);
+        return true;
+    },
+};
+
+function reactive(target) {
+    return createReactiveObject(target, mutableHandlers);
+}
+function readonly(target) {
+    return createReactiveObject(target, readonlyHandlers);
+}
+function shallowReadonly(target) {
+    return createReactiveObject(target, shallowReadonlyHandlers);
+}
+function createReactiveObject(target, baseHandlers) {
+    return new Proxy(target, baseHandlers);
+}
+
+function initProps(instance, rawProps) {
+    instance.props = rawProps || {};
+}
+
 const publicPropertiesMap = {
     $el: (i) => i.vnode.el,
 };
 const PublicInstanceProxyHandlers = {
     get({ _: instance }, key) {
-        const { setupState } = instance;
+        const { setupState, props } = instance;
         if (key in setupState) {
             return setupState[key];
         }
-        if (key === "$el") {
-            return instance.vnode.el;
+        if (hasOwn(setupState, key)) {
+            return setupState[key];
+        }
+        else if (hasOwn(props, key)) {
+            return props[key];
         }
         const publicGetter = publicPropertiesMap[key];
         if (publicGetter) {
@@ -54,6 +151,7 @@ function createComponentInstance(vnode) {
     return instance;
 }
 function setupComponent(instance) {
+    initProps(instance, instance.vnode.props);
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
@@ -61,7 +159,7 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
-        const setupResult = setup && setup();
+        const setupResult = setup && setup(shallowReadonly(instance.props));
         handleSetupResult(instance, setupResult);
     }
 }
