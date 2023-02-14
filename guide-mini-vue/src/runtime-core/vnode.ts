@@ -25,6 +25,12 @@ export const createVNode = function (
     vnode.shapeFlag |= ShapeFlags.ARRAY_CHILDREN;
   }
 
+  if (vnode.shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
+    if (typeof children === "object") {
+      vnode.shapeFlag |= ShapeFlags.SLOTS_CHILDREN;
+    }
+  }
+
   return vnode;
 };
 

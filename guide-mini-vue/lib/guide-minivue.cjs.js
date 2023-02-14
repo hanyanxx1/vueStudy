@@ -22,6 +22,11 @@ const createVNode = function (type, props, children) {
     else if (Array.isArray(children)) {
         vnode.shapeFlag |= 16 /* ShapeFlags.ARRAY_CHILDREN */;
     }
+    if (vnode.shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
+        if (typeof children === "object") {
+            vnode.shapeFlag |= 32 /* ShapeFlags.SLOTS_CHILDREN */;
+        }
+    }
     return vnode;
 };
 function getShapeFlag(type) {
@@ -149,6 +154,7 @@ function initProps(instance, rawProps) {
 
 const publicPropertiesMap = {
     $el: (i) => i.vnode.el,
+    $slots: (i) => i.slots,
 };
 const PublicInstanceProxyHandlers = {
     get({ _: instance }, key) {
@@ -169,19 +175,38 @@ const PublicInstanceProxyHandlers = {
     },
 };
 
+function initSlots(instance, children) {
+    const { vnode } = instance;
+    if (vnode.shapeFlag & 32 /* ShapeFlags.SLOTS_CHILDREN */) {
+        normalizeObjectSlots(children, instance.slots);
+    }
+}
+const normalizeSlotValue = (value) => {
+    return Array.isArray(value) ? value : [value];
+};
+const normalizeObjectSlots = (children, slots) => {
+    for (const key in children) {
+        const value = children[key];
+        slots[key] = (props) => normalizeSlotValue(value(props));
+    }
+};
+
 function createComponentInstance(vnode) {
     const instance = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
+        slots: {},
         emit: () => { },
     };
     instance.emit = emit.bind(null, instance);
     return instance;
 }
 function setupComponent(instance) {
-    initProps(instance, instance.vnode.props);
+    const { props, children } = instance.vnode;
+    initProps(instance, props);
+    initSlots(instance, children);
     setupStatefulComponent(instance);
 }
 function setupStatefulComponent(instance) {
@@ -272,6 +297,14 @@ function createApp(rootComponent) {
     return app;
 }
 
+function renderSlot(slots, name, props) {
+    const slot = slots[name];
+    if (slot) {
+        return createVNode("div", {}, slot(props));
+    }
+}
+
 exports.createApp = createApp;
 exports.h = h;
+exports.renderSlot = renderSlot;
 //# sourceMappingURL=guide-minivue.cjs.js.map
