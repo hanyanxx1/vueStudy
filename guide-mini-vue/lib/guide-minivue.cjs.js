@@ -13,6 +13,7 @@ const createVNode = function (type, props, children) {
         type,
         props: props || {},
         children,
+        el: null,
     };
     return vnode;
 };
@@ -25,8 +26,27 @@ const isObject = (val) => {
     return val !== null && typeof val === "object";
 };
 
+const publicPropertiesMap = {
+    $el: (i) => i.vnode.el,
+};
+const PublicInstanceProxyHandlers = {
+    get({ _: instance }, key) {
+        const { setupState } = instance;
+        if (key in setupState) {
+            return setupState[key];
+        }
+        if (key === "$el") {
+            return instance.vnode.el;
+        }
+        const publicGetter = publicPropertiesMap[key];
+        if (publicGetter) {
+            return publicGetter(instance);
+        }
+    },
+};
+
 function createComponentInstance(vnode) {
-    const instance = { vnode, type: vnode.type };
+    const instance = { vnode, type: vnode.type, setupState: {} };
     return instance;
 }
 function setupComponent(instance) {
@@ -34,6 +54,7 @@ function setupComponent(instance) {
 }
 function setupStatefulComponent(instance) {
     const Component = instance.type;
+    instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
         const setupResult = setup && setup();
@@ -41,8 +62,8 @@ function setupStatefulComponent(instance) {
     }
 }
 function handleSetupResult(instance, setupResult) {
-    if (typeof setupResult === "function") {
-        instance.render = setupResult;
+    if (typeof setupResult === "object") {
+        instance.setupState = setupResult;
     }
     finishComponentSetup(instance);
 }
@@ -66,7 +87,7 @@ function processElement(vnode, container) {
     mountElement(vnode, container);
 }
 function mountElement(vnode, container) {
-    const el = document.createElement(vnode.type);
+    const el = (vnode.el = document.createElement(vnode.type));
     const { children } = vnode;
     if (typeof children === "string") {
         el.textContent = children;
@@ -89,14 +110,16 @@ function mountChildren(vnode, container) {
 function processComponent(vnode, container) {
     mountComponent(vnode, container);
 }
-function mountComponent(vnode, container) {
-    const instance = createComponentInstance(vnode);
+function mountComponent(initialVNode, container) {
+    const instance = createComponentInstance(initialVNode);
     setupComponent(instance);
-    setupRenderEffect(instance, container);
+    setupRenderEffect(instance, initialVNode, container);
 }
-function setupRenderEffect(instance, container) {
-    const subTree = instance.render();
+function setupRenderEffect(instance, initialVNode, container) {
+    const { proxy } = instance;
+    const subTree = instance.render.call(proxy);
     patch(subTree, container);
+    initialVNode.el = subTree.el;
 }
 
 function createApp(rootComponent) {

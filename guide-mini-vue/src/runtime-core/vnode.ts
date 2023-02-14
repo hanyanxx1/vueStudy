@@ -13,6 +13,7 @@ export const createVNode = function (
     type,
     props: props || {},
     children,
+    el: null,
   };
 
   return vnode;
