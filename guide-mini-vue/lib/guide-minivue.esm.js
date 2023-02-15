@@ -25,6 +25,11 @@ const createVNode = function (type, props, children) {
     }
     return vnode;
 };
+const Text = Symbol("Text");
+const Fragment = Symbol("Fragment");
+function createTextVNode(text = "") {
+    return createVNode(Text, {}, text);
+}
 function getShapeFlag(type) {
     return typeof type === "string"
         ? 1 /* ShapeFlags.ELEMENT */
@@ -183,7 +188,9 @@ const normalizeSlotValue = (value) => {
 const normalizeObjectSlots = (children, slots) => {
     for (const key in children) {
         const value = children[key];
-        slots[key] = (props) => normalizeSlotValue(value(props));
+        if (typeof value === "function") {
+            slots[key] = (props) => normalizeSlotValue(value(props));
+        }
     }
 };
 
@@ -229,13 +236,30 @@ function render(vnode, container) {
     patch(vnode, container);
 }
 function patch(vnode, container) {
-    const { shapeFlag } = vnode;
-    if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
-        processElement(vnode, container);
+    const { type, shapeFlag } = vnode;
+    switch (type) {
+        case Text:
+            processText(vnode, container);
+            break;
+        case Fragment:
+            processFragment(vnode, container);
+            break;
+        default:
+            if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
+                processElement(vnode, container);
+            }
+            else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
+                processComponent(vnode, container);
+            }
     }
-    else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
-        processComponent(vnode, container);
-    }
+}
+function processFragment(vnode, container) {
+    mountChildren(vnode, container);
+}
+function processText(vnode, container) {
+    const { children } = vnode;
+    const textNode = (vnode.el = document.createTextNode(children));
+    container.append(textNode);
 }
 function processElement(vnode, container) {
     mountElement(vnode, container);
@@ -296,9 +320,9 @@ function createApp(rootComponent) {
 function renderSlot(slots, name, props) {
     const slot = slots[name];
     if (slot) {
-        return createVNode("div", {}, slot(props));
+        return createVNode(Fragment, {}, slot(props));
     }
 }
 
-export { createApp, h, renderSlot };
+export { createApp, createTextVNode, h, renderSlot };
 //# sourceMappingURL=guide-minivue.esm.js.map

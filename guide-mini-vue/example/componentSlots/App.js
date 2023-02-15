@@ -1,4 +1,4 @@
-import { h } from "../../lib/guide-minivue.esm.js";
+import { h, createTextVNode } from "../../lib/guide-minivue.esm.js";
 import { Foo } from "./Foo.js";
 
 export default {
@@ -13,7 +13,10 @@ export default {
       Foo,
       {},
       {
-        header: ({ age }) => h("p", {}, "header" + age),
+        header: ({ age }) => [
+          h("p", {}, "header" + age),
+          createTextVNode("你好呀"),
+        ],
         footer: ({ age }) => h("p", {}, "footer" + age),
       }
     );

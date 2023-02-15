@@ -14,6 +14,8 @@ const normalizeSlotValue = (value) => {
 const normalizeObjectSlots = (children, slots) => {
   for (const key in children) {
     const value = children[key];
-    slots[key] = (props) => normalizeSlotValue(value(props));
+    if (typeof value === "function") {
+      slots[key] = (props) => normalizeSlotValue(value(props));
+    }
   }
 };

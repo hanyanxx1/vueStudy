@@ -34,6 +34,13 @@ export const createVNode = function (
   return vnode;
 };
 
+export const Text = Symbol("Text");
+export const Fragment = Symbol("Fragment");
+
+export function createTextVNode(text: string = "") {
+  return createVNode(Text, {}, text);
+}
+
 function getShapeFlag(type) {
   return typeof type === "string"
     ? ShapeFlags.ELEMENT
