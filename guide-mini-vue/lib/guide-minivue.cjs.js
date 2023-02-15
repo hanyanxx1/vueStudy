@@ -44,9 +44,25 @@ const h = (type, props = null, children = []) => {
     return createVNode(type, props, children);
 };
 
+function createAppAPI(render) {
+    return function createApp(rootComponent) {
+        const app = {
+            mount(rootContainer) {
+                const vnode = createVNode(rootComponent);
+                render(vnode, rootContainer);
+            },
+        };
+        return app;
+    };
+}
+
 const isObject = (val) => {
     return val !== null && typeof val === "object";
 };
+const extend = Object.assign;
+function hasChanged(value, oldValue) {
+    return !Object.is(value, oldValue);
+}
 function hasOwn(val, key) {
     return Object.prototype.hasOwnProperty.call(val, key);
 }
@@ -62,11 +78,103 @@ const toHandlerKey = (str) => {
     return str ? "on" + capitalize(str) : "";
 };
 
+let activeEffect;
+let shouldTrack;
 const targetMap = new WeakMap();
+class ReactiveEffect {
+    constructor(fn, scheduler) {
+        this.scheduler = scheduler;
+        this.active = true;
+        this.deps = [];
+        this._fn = fn;
+    }
+    run() {
+        console.log("run");
+        // 运行 run 的时候，可以控制 要不要执行后续收集依赖的一步
+        // 目前来看的话，只要执行了 fn 那么就默认执行了收集依赖
+        // 这里就需要控制了
+        // 是不是收集依赖的变量
+        // 执行 fn  但是不收集依赖
+        if (!this.active) {
+            return this._fn();
+        }
+        // 执行 fn  收集依赖
+        // 可以开始收集依赖了
+        shouldTrack = true;
+        // 执行的时候给全局的 activeEffect 赋值
+        // 利用全局属性来获取当前的 effect
+        activeEffect = this;
+        // 执行用户传入的 fn
+        console.log("执行用户传入的 fn");
+        const result = this._fn();
+        // 重置
+        shouldTrack = false;
+        return result;
+    }
+    stop() {
+        if (this.active) {
+            // 如果第一次执行 stop 后 active 就 false 了
+            // 这是为了防止重复的调用，执行 stop 逻辑
+            cleanupEffect(this);
+            if (this.onStop) {
+                this.onStop();
+            }
+            this.active = false;
+        }
+    }
+}
+function cleanupEffect(effect) {
+    // 找到所有依赖这个 effect 的响应式对象
+    // 从这些响应式对象里面把 effect 给删除掉
+    effect.deps.forEach((dep) => {
+        dep.delete(effect);
+    });
+    effect.deps.length = 0;
+}
+function effect(fn, options = {}) {
+    const _effect = new ReactiveEffect(fn, options.scheduler);
+    Object.assign(_effect, options);
+    extend(_effect, options);
+    _effect.run();
+    const runner = _effect.run.bind(_effect);
+    runner.effect = _effect;
+    return runner;
+}
+function stop(runner) {
+    runner.effect.stop();
+}
+function track(target, key) {
+    if (!isTracking()) {
+        return;
+    }
+    // 1. 先基于 target 找到对应的 dep
+    // 如果是第一次的话，那么就需要初始化
+    let depsMap = targetMap.get(target);
+    if (!depsMap) {
+        // 初始化 depsMap 的逻辑
+        depsMap = new Map();
+        targetMap.set(target, depsMap);
+    }
+    let dep = depsMap.get(key);
+    if (!dep) {
+        dep = new Set();
+        depsMap.set(key, dep);
+    }
+    trackEffects(dep);
+}
+function trackEffects(dep) {
+    if (!dep.has(activeEffect)) {
+        dep.add(activeEffect);
+        activeEffect.deps.push(dep);
+    }
+}
 function trigger(target, key) {
     const depsMap = targetMap.get(target);
     const dep = depsMap.get(key);
     triggerEffects(dep);
+}
+function isTracking() {
+    return shouldTrack && activeEffect !== undefined;
 }
 function triggerEffects(dep) {
     for (const effect of dep) {
@@ -92,6 +200,12 @@ function createGetter(isReadonly = false, shallow = false) {
             return isReadonly;
         }
         const res = Reflect.get(target, key);
+        // 问题：为什么是 readonly 的时候不做依赖收集呢
+        // readonly 的话，是不可以被 set 的， 那不可以被 set 就意味着不会触发 trigger
+        // 所有就没有收集依赖的必要了
+        if (!isReadonly) {
+            track(target, key);
+        }
         if (shallow) {
             return res;
         }
@@ -140,6 +254,19 @@ function readonly(target) {
 }
 function shallowReadonly(target) {
     return createReactiveObject(target, shallowReadonlyHandlers);
+}
+function isProxy(value) {
+    return isReactive(value) || isReadonly(value);
+}
+function isReadonly(value) {
+    return !!value["__v_isReadonly" /* ReactiveFlags.IS_READONLY */];
+}
+function isReactive(value) {
+    // 如果 value 是 proxy 的话
+    // 会触发 get 操作，而在 createGetter 里面会判断
+    // 如果 value 是普通对象的话
+    // 那么会返回 undefined ，那么就需要转换成布尔值
+    return !!value["__v_isReactive" /* ReactiveFlags.IS_REACTIVE */];
 }
 function createReactiveObject(target, baseHandlers) {
     return new Proxy(target, baseHandlers);
@@ -252,91 +379,6 @@ function setCurrentInstance(instance) {
     currentInstance = instance;
 }
 
-function render(vnode, container) {
-    patch(vnode, container);
-}
-function patch(vnode, container, parentComponent = null) {
-    const { type, shapeFlag } = vnode;
-    switch (type) {
-        case Text:
-            processText(vnode, container);
-            break;
-        case Fragment:
-            processFragment(vnode, container);
-            break;
-        default:
-            if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
-                processElement(vnode, container);
-            }
-            else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
-                processComponent(vnode, container, parentComponent);
-            }
-    }
-}
-function processFragment(vnode, container) {
-    mountChildren(vnode, container);
-}
-function processText(vnode, container) {
-    const { children } = vnode;
-    const textNode = (vnode.el = document.createTextNode(children));
-    container.append(textNode);
-}
-function processElement(vnode, container) {
-    mountElement(vnode, container);
-}
-function mountElement(vnode, container) {
-    const el = (vnode.el = document.createElement(vnode.type));
-    const { children, shapeFlag } = vnode;
-    if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
-        el.textContent = children;
-    }
-    else if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
-        mountChildren(vnode, el);
-    }
-    const { props } = vnode;
-    for (const key in props) {
-        const val = props[key];
-        const isOn = (key) => /^on[A-Z]/.test(key);
-        if (isOn(key)) {
-            const event = key.slice(2).toLowerCase();
-            el.addEventListener(event, val);
-        }
-        else {
-            el.setAttribute(key, val);
-        }
-    }
-    container.append(el);
-}
-function mountChildren(vnode, container) {
-    vnode.children.forEach((v) => {
-        patch(v, container);
-    });
-}
-function processComponent(vnode, container, parentComponent) {
-    mountComponent(vnode, container, parentComponent);
-}
-function mountComponent(initialVNode, container, parentComponent) {
-    const instance = createComponentInstance(initialVNode, parentComponent);
-    setupComponent(instance);
-    setupRenderEffect(instance, initialVNode, container);
-}
-function setupRenderEffect(instance, initialVNode, container) {
-    const { proxy } = instance;
-    const subTree = instance.render.call(proxy);
-    patch(subTree, container, instance);
-    initialVNode.el = subTree.el;
-}
-
-function createApp(rootComponent) {
-    const app = {
-        mount(rootContainer) {
-            const vnode = createVNode(rootComponent);
-            render(vnode, rootContainer);
-        },
-    };
-    return app;
-}
-
 function renderSlot(slots, name, props) {
     const slot = slots[name];
     if (slot) {
@@ -373,11 +415,235 @@ function inject(key, defaultValue) {
     }
 }
 
+function createRenderer(options) {
+    const { createElement: hostCreateElement, patchProp: hostPatchProp, insert: hostInsert, } = options;
+    const render = (vnode, container) => {
+        patch(vnode, container);
+    };
+    function patch(vnode, container, parentComponent = null) {
+        const { type, shapeFlag } = vnode;
+        switch (type) {
+            case Text:
+                processText(vnode, container);
+                break;
+            case Fragment:
+                processFragment(vnode, container);
+                break;
+            default:
+                if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
+                    processElement(vnode, container);
+                }
+                else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
+                    processComponent(vnode, container, parentComponent);
+                }
+        }
+    }
+    function processFragment(vnode, container) {
+        mountChildren(vnode, container);
+    }
+    function processText(vnode, container) {
+        const { children } = vnode;
+        const textNode = (vnode.el = document.createTextNode(children));
+        container.append(textNode);
+    }
+    function processElement(vnode, container) {
+        mountElement(vnode, container);
+    }
+    function mountElement(vnode, container) {
+        const el = (vnode.el = hostCreateElement(vnode.type));
+        const { children, shapeFlag } = vnode;
+        if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
+            el.textContent = children;
+        }
+        else if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
+            mountChildren(vnode, el);
+        }
+        const { props } = vnode;
+        for (const key in props) {
+            const nextVal = props[key];
+            hostPatchProp(el, key, nextVal);
+        }
+        hostInsert(el, container);
+    }
+    function mountChildren(vnode, container) {
+        vnode.children.forEach((v) => {
+            patch(v, container);
+        });
+    }
+    function processComponent(vnode, container, parentComponent) {
+        mountComponent(vnode, container, parentComponent);
+    }
+    function mountComponent(initialVNode, container, parentComponent) {
+        const instance = createComponentInstance(initialVNode, parentComponent);
+        setupComponent(instance);
+        setupRenderEffect(instance, initialVNode, container);
+    }
+    function setupRenderEffect(instance, initialVNode, container) {
+        const { proxy } = instance;
+        const subTree = instance.render.call(proxy);
+        patch(subTree, container, instance);
+        initialVNode.el = subTree.el;
+    }
+    return {
+        render,
+        createApp: createAppAPI(render),
+    };
+}
+
+class RefImpl {
+    constructor(value) {
+        this.__v_isRef = true;
+        this._rawValue = value;
+        // 看看value 是不是一个对象，如果是一个对象的话
+        // 那么需要用 reactive 包裹一下
+        this._value = convert(value);
+        this.dep = new Set();
+    }
+    get value() {
+        // 收集依赖
+        trackRefValue(this);
+        return this._value;
+    }
+    set value(newValue) {
+        // 当新的值不等于老的值的话，
+        // 那么才需要触发依赖
+        if (hasChanged(newValue, this._rawValue)) {
+            // 更新值
+            this._value = convert(newValue);
+            this._rawValue = newValue;
+            // 触发依赖
+            triggerRefValue(this);
+        }
+    }
+}
+function ref(value) {
+    return createRef(value);
+}
+function convert(value) {
+    return isObject(value) ? reactive(value) : value;
+}
+function createRef(value) {
+    const refImpl = new RefImpl(value);
+    return refImpl;
+}
+function triggerRefValue(ref) {
+    triggerEffects(ref.dep);
+}
+function trackRefValue(ref) {
+    if (isTracking()) {
+        trackEffects(ref.dep);
+    }
+}
+// 这个函数的目的是
+// 帮助解构 ref
+// 比如在 template 中使用 ref 的时候，直接使用就可以了
+// 例如： const count = ref(0) -> 在 template 中使用的话 可以直接 count
+// 解决方案就是通过 proxy 来对 ref 做处理
+const shallowUnwrapHandlers = {
+    get(target, key, receiver) {
+        // 如果里面是一个 ref 类型的话，那么就返回 .value
+        // 如果不是的话，那么直接返回value 就可以了
+        return unRef(Reflect.get(target, key, receiver));
+    },
+    set(target, key, value, receiver) {
+        const oldValue = target[key];
+        if (isRef(oldValue) && !isRef(value)) {
+            return (target[key].value = value);
+        }
+        else {
+            return Reflect.set(target, key, value, receiver);
+        }
+    },
+};
+// 这里没有处理 objectWithRefs 是 reactive 类型的时候
+// TODO reactive 里面如果有 ref 类型的 key 的话， 那么也是不需要调用 ref.value 的
+// （but 这个逻辑在 reactive 里面没有实现）
+function proxyRefs(objectWithRefs) {
+    return new Proxy(objectWithRefs, shallowUnwrapHandlers);
+}
+// 把 ref 里面的值拿到
+function unRef(ref) {
+    return isRef(ref) ? ref.value : ref;
+}
+function isRef(value) {
+    return !!value.__v_isRef;
+}
+
+class ComputedRefImpl {
+    constructor(getter) {
+        this._dirty = true;
+        this.effect = new ReactiveEffect(getter, () => {
+            // scheduler
+            // 只要触发了这个函数说明响应式对象的值发生改变了
+            // 那么就解锁，后续在调用 get 的时候就会重新执行，所以会得到最新的值
+            if (this._dirty)
+                return;
+            this._dirty = true;
+        });
+    }
+    get value() {
+        // 锁上，只可以调用一次
+        // 当数据改变的时候才会解锁
+        // 这里就是缓存实现的核心
+        // 解锁是在 scheduler 里面做的
+        if (this._dirty) {
+            this._dirty = false;
+            // 这里执行 run 的话，就是执行用户传入的 fn
+            this._value = this.effect.run();
+        }
+        return this._value;
+    }
+}
+function computed(getter) {
+    return new ComputedRefImpl(getter);
+}
+
+function createElement(type) {
+    return document.createElement(type);
+}
+function patchProp(el, key, val) {
+    const isOn = (key) => /^on[A-Z]/.test(key);
+    if (isOn(key)) {
+        const event = key.slice(2).toLowerCase();
+        el.addEventListener(event, val);
+    }
+    else {
+        el.setAttribute(key, val);
+    }
+}
+function insert(el, parent) {
+    parent.append(el);
+}
+const render = createRenderer({
+    createElement,
+    patchProp,
+    insert,
+});
+const createApp = (...args) => {
+    return render.createApp(...args);
+};
+
+exports.ReactiveEffect = ReactiveEffect;
+exports.computed = computed;
 exports.createApp = createApp;
+exports.createAppAPI = createAppAPI;
+exports.createRenderer = createRenderer;
 exports.createTextVNode = createTextVNode;
+exports.effect = effect;
 exports.getCurrentInstance = getCurrentInstance;
 exports.h = h;
 exports.inject = inject;
+exports.isProxy = isProxy;
+exports.isReactive = isReactive;
+exports.isReadonly = isReadonly;
+exports.isRef = isRef;
 exports.provide = provide;
+exports.proxyRefs = proxyRefs;
+exports.reactive = reactive;
+exports.readonly = readonly;
+exports.ref = ref;
 exports.renderSlot = renderSlot;
+exports.shallowReadonly = shallowReadonly;
+exports.stop = stop;
+exports.unRef = unRef;
 //# sourceMappingURL=guide-minivue.cjs.js.map
