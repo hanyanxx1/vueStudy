@@ -221,7 +221,9 @@ function setupStatefulComponent(instance) {
     instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
     const { setup } = Component;
     if (setup) {
+        setCurrentInstance(instance);
         const setupResult = setup && setup(shallowReadonly(instance.props), { emit: instance.emit });
+        setCurrentInstance(null);
         handleSetupResult(instance, setupResult);
     }
 }
@@ -234,6 +236,13 @@ function handleSetupResult(instance, setupResult) {
 function finishComponentSetup(instance) {
     const Component = instance.type;
     instance.render = Component.render;
+}
+let currentInstance = null;
+function getCurrentInstance() {
+    return currentInstance;
+}
+function setCurrentInstance(instance) {
+    currentInstance = instance;
 }
 
 function render(vnode, container) {
@@ -330,6 +339,7 @@ function renderSlot(slots, name, props) {
 
 exports.createApp = createApp;
 exports.createTextVNode = createTextVNode;
+exports.getCurrentInstance = getCurrentInstance;
 exports.h = h;
 exports.renderSlot = renderSlot;
 //# sourceMappingURL=guide-minivue.cjs.js.map
