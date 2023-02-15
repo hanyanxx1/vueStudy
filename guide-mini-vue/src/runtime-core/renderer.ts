@@ -6,7 +6,7 @@ export function render(vnode, container) {
   patch(vnode, container);
 }
 
-function patch(vnode, container) {
+function patch(vnode, container, parentComponent = null) {
   const { type, shapeFlag } = vnode;
 
   switch (type) {
@@ -20,7 +20,7 @@ function patch(vnode, container) {
       if (shapeFlag & ShapeFlags.ELEMENT) {
         processElement(vnode, container);
       } else if (shapeFlag & ShapeFlags.STATEFUL_COMPONENT) {
-        processComponent(vnode, container);
+        processComponent(vnode, container, parentComponent);
       }
   }
 }
@@ -71,12 +71,12 @@ function mountChildren(vnode, container) {
   });
 }
 
-function processComponent(vnode, container) {
-  mountComponent(vnode, container);
+function processComponent(vnode, container, parentComponent) {
+  mountComponent(vnode, container, parentComponent);
 }
 
-function mountComponent(initialVNode, container) {
-  const instance = createComponentInstance(initialVNode);
+function mountComponent(initialVNode, container, parentComponent) {
+  const instance = createComponentInstance(initialVNode, parentComponent);
 
   setupComponent(instance);
 
@@ -87,7 +87,7 @@ function setupRenderEffect(instance, initialVNode, container) {
   const { proxy } = instance;
   const subTree = instance.render.call(proxy);
 
-  patch(subTree, container);
+  patch(subTree, container, instance);
 
   initialVNode.el = subTree.el;
 }

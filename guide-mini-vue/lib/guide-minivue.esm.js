@@ -194,13 +194,15 @@ const normalizeObjectSlots = (children, slots) => {
     }
 };
 
-function createComponentInstance(vnode) {
+function createComponentInstance(vnode, parent) {
     const instance = {
         vnode,
         type: vnode.type,
         setupState: {},
         props: {},
         slots: {},
+        provides: parent ? parent.provides : {},
+        parent,
         emit: () => { },
     };
     instance.emit = emit.bind(null, instance);
@@ -224,14 +226,19 @@ function setupStatefulComponent(instance) {
     }
 }
 function handleSetupResult(instance, setupResult) {
-    if (typeof setupResult === "object") {
+    if (typeof setupResult === "function") {
+        instance.render = setupResult;
+    }
+    else if (typeof setupResult === "object") {
         instance.setupState = setupResult;
     }
     finishComponentSetup(instance);
 }
 function finishComponentSetup(instance) {
     const Component = instance.type;
-    instance.render = Component.render;
+    if (!instance.render) {
+        instance.render = Component.render;
+    }
 }
 let currentInstance = null;
 function getCurrentInstance() {
@@ -244,7 +251,7 @@ function setCurrentInstance(instance) {
 function render(vnode, container) {
     patch(vnode, container);
 }
-function patch(vnode, container) {
+function patch(vnode, container, parentComponent = null) {
     const { type, shapeFlag } = vnode;
     switch (type) {
         case Text:
@@ -258,7 +265,7 @@ function patch(vnode, container) {
                 processElement(vnode, container);
             }
             else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
-                processComponent(vnode, container);
+                processComponent(vnode, container, parentComponent);
             }
     }
 }
@@ -301,18 +308,18 @@ function mountChildren(vnode, container) {
         patch(v, container);
     });
 }
-function processComponent(vnode, container) {
-    mountComponent(vnode, container);
+function processComponent(vnode, container, parentComponent) {
+    mountComponent(vnode, container, parentComponent);
 }
-function mountComponent(initialVNode, container) {
-    const instance = createComponentInstance(initialVNode);
+function mountComponent(initialVNode, container, parentComponent) {
+    const instance = createComponentInstance(initialVNode, parentComponent);
     setupComponent(instance);
     setupRenderEffect(instance, initialVNode, container);
 }
 function setupRenderEffect(instance, initialVNode, container) {
     const { proxy } = instance;
     const subTree = instance.render.call(proxy);
-    patch(subTree, container);
+    patch(subTree, container, instance);
     initialVNode.el = subTree.el;
 }
 
@@ -333,5 +340,34 @@ function renderSlot(slots, name, props) {
     }
 }
 
-export { createApp, createTextVNode, getCurrentInstance, h, renderSlot };
+function provide(key, value) {
+    var _a;
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        let { provides } = currentInstance;
+        const parentProvides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
+        if (provides === parentProvides) {
+            provides = currentInstance.provides = Object.create(parentProvides);
+        }
+        provides[key] = value;
+    }
+}
+function inject(key, defaultValue) {
+    var _a;
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        const provides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
+        if (key in provides) {
+            return provides[key];
+        }
+        else if (defaultValue) {
+            if (typeof defaultValue === "function") {
+                return defaultValue();
+            }
+            return defaultValue;
+        }
+    }
+}
+
+export { createApp, createTextVNode, getCurrentInstance, h, inject, provide, renderSlot };
 //# sourceMappingURL=guide-minivue.esm.js.map

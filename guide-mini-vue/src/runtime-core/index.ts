@@ -3,3 +3,4 @@ export * from "./createApp";
 export { getCurrentInstance } from "./component";
 export { renderSlot } from "./helpers/renderSlot";
 export { createTextVNode } from "./vnode";
+export { provide, inject } from "./apiInject";
