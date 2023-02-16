@@ -14,7 +14,6 @@ export class ReactiveEffect {
   }
 
   run() {
-    console.log("run");
     // 运行 run 的时候，可以控制 要不要执行后续收集依赖的一步
     // 目前来看的话，只要执行了 fn 那么就默认执行了收集依赖
     // 这里就需要控制了
@@ -34,7 +33,6 @@ export class ReactiveEffect {
     // 利用全局属性来获取当前的 effect
     activeEffect = this as any;
     // 执行用户传入的 fn
-    console.log("执行用户传入的 fn");
     const result = this._fn();
     // 重置
     shouldTrack = false;

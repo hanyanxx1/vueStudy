@@ -89,7 +89,6 @@ class ReactiveEffect {
         this._fn = fn;
     }
     run() {
-        console.log("run");
         // 运行 run 的时候，可以控制 要不要执行后续收集依赖的一步
         // 目前来看的话，只要执行了 fn 那么就默认执行了收集依赖
         // 这里就需要控制了
@@ -105,7 +104,6 @@ class ReactiveEffect {
         // 利用全局属性来获取当前的 effect
         activeEffect = this;
         // 执行用户传入的 fn
-        console.log("执行用户传入的 fn");
         const result = this._fn();
         // 重置
         shouldTrack = false;
@@ -272,224 +270,6 @@ function createReactiveObject(target, baseHandlers) {
     return new Proxy(target, baseHandlers);
 }
 
-function emit(instance, event, ...rawArgs) {
-    const { props } = instance;
-    const handler = props[toHandlerKey(camelize(event))];
-    if (handler) {
-        handler(...rawArgs);
-    }
-}
-
-function initProps(instance, rawProps) {
-    instance.props = rawProps || {};
-}
-
-const publicPropertiesMap = {
-    $el: (i) => i.vnode.el,
-    $slots: (i) => i.slots,
-};
-const PublicInstanceProxyHandlers = {
-    get({ _: instance }, key) {
-        const { setupState, props } = instance;
-        if (key in setupState) {
-            return setupState[key];
-        }
-        if (hasOwn(setupState, key)) {
-            return setupState[key];
-        }
-        else if (hasOwn(props, key)) {
-            return props[key];
-        }
-        const publicGetter = publicPropertiesMap[key];
-        if (publicGetter) {
-            return publicGetter(instance);
-        }
-    },
-};
-
-function initSlots(instance, children) {
-    const { vnode } = instance;
-    if (vnode.shapeFlag & 32 /* ShapeFlags.SLOTS_CHILDREN */) {
-        normalizeObjectSlots(children, instance.slots);
-    }
-}
-const normalizeSlotValue = (value) => {
-    return Array.isArray(value) ? value : [value];
-};
-const normalizeObjectSlots = (children, slots) => {
-    for (const key in children) {
-        const value = children[key];
-        if (typeof value === "function") {
-            slots[key] = (props) => normalizeSlotValue(value(props));
-        }
-    }
-};
-
-function createComponentInstance(vnode, parent) {
-    const instance = {
-        vnode,
-        type: vnode.type,
-        setupState: {},
-        props: {},
-        slots: {},
-        provides: parent ? parent.provides : {},
-        parent,
-        emit: () => { },
-    };
-    instance.emit = emit.bind(null, instance);
-    return instance;
-}
-function setupComponent(instance) {
-    const { props, children } = instance.vnode;
-    initProps(instance, props);
-    initSlots(instance, children);
-    setupStatefulComponent(instance);
-}
-function setupStatefulComponent(instance) {
-    const Component = instance.type;
-    instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
-    const { setup } = Component;
-    if (setup) {
-        setCurrentInstance(instance);
-        const setupResult = setup && setup(shallowReadonly(instance.props), { emit: instance.emit });
-        setCurrentInstance(null);
-        handleSetupResult(instance, setupResult);
-    }
-}
-function handleSetupResult(instance, setupResult) {
-    if (typeof setupResult === "function") {
-        instance.render = setupResult;
-    }
-    else if (typeof setupResult === "object") {
-        instance.setupState = setupResult;
-    }
-    finishComponentSetup(instance);
-}
-function finishComponentSetup(instance) {
-    const Component = instance.type;
-    if (!instance.render) {
-        instance.render = Component.render;
-    }
-}
-let currentInstance = null;
-function getCurrentInstance() {
-    return currentInstance;
-}
-function setCurrentInstance(instance) {
-    currentInstance = instance;
-}
-
-function renderSlot(slots, name, props) {
-    const slot = slots[name];
-    if (slot) {
-        return createVNode(Fragment, {}, slot(props));
-    }
-}
-
-function provide(key, value) {
-    var _a;
-    const currentInstance = getCurrentInstance();
-    if (currentInstance) {
-        let { provides } = currentInstance;
-        const parentProvides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
-        if (provides === parentProvides) {
-            provides = currentInstance.provides = Object.create(parentProvides);
-        }
-        provides[key] = value;
-    }
-}
-function inject(key, defaultValue) {
-    var _a;
-    const currentInstance = getCurrentInstance();
-    if (currentInstance) {
-        const provides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
-        if (key in provides) {
-            return provides[key];
-        }
-        else if (defaultValue) {
-            if (typeof defaultValue === "function") {
-                return defaultValue();
-            }
-            return defaultValue;
-        }
-    }
-}
-
-function createRenderer(options) {
-    const { createElement: hostCreateElement, patchProp: hostPatchProp, insert: hostInsert, } = options;
-    const render = (vnode, container) => {
-        patch(vnode, container);
-    };
-    function patch(vnode, container, parentComponent = null) {
-        const { type, shapeFlag } = vnode;
-        switch (type) {
-            case Text:
-                processText(vnode, container);
-                break;
-            case Fragment:
-                processFragment(vnode, container);
-                break;
-            default:
-                if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
-                    processElement(vnode, container);
-                }
-                else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
-                    processComponent(vnode, container, parentComponent);
-                }
-        }
-    }
-    function processFragment(vnode, container) {
-        mountChildren(vnode, container);
-    }
-    function processText(vnode, container) {
-        const { children } = vnode;
-        const textNode = (vnode.el = document.createTextNode(children));
-        container.append(textNode);
-    }
-    function processElement(vnode, container) {
-        mountElement(vnode, container);
-    }
-    function mountElement(vnode, container) {
-        const el = (vnode.el = hostCreateElement(vnode.type));
-        const { children, shapeFlag } = vnode;
-        if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
-            el.textContent = children;
-        }
-        else if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
-            mountChildren(vnode, el);
-        }
-        const { props } = vnode;
-        for (const key in props) {
-            const nextVal = props[key];
-            hostPatchProp(el, key, nextVal);
-        }
-        hostInsert(el, container);
-    }
-    function mountChildren(vnode, container) {
-        vnode.children.forEach((v) => {
-            patch(v, container);
-        });
-    }
-    function processComponent(vnode, container, parentComponent) {
-        mountComponent(vnode, container, parentComponent);
-    }
-    function mountComponent(initialVNode, container, parentComponent) {
-        const instance = createComponentInstance(initialVNode, parentComponent);
-        setupComponent(instance);
-        setupRenderEffect(instance, initialVNode, container);
-    }
-    function setupRenderEffect(instance, initialVNode, container) {
-        const { proxy } = instance;
-        const subTree = instance.render.call(proxy);
-        patch(subTree, container, instance);
-        initialVNode.el = subTree.el;
-    }
-    return {
-        render,
-        createApp: createAppAPI(render),
-    };
-}
-
 class RefImpl {
     constructor(value) {
         this.__v_isRef = true;
@@ -596,6 +376,248 @@ class ComputedRefImpl {
 }
 function computed(getter) {
     return new ComputedRefImpl(getter);
+}
+
+function emit(instance, event, ...rawArgs) {
+    const { props } = instance;
+    const handler = props[toHandlerKey(camelize(event))];
+    if (handler) {
+        handler(...rawArgs);
+    }
+}
+
+function initProps(instance, rawProps) {
+    instance.props = rawProps || {};
+}
+
+const publicPropertiesMap = {
+    $el: (i) => i.vnode.el,
+    $slots: (i) => i.slots,
+};
+const PublicInstanceProxyHandlers = {
+    get({ _: instance }, key) {
+        const { setupState, props } = instance;
+        if (key in setupState) {
+            return setupState[key];
+        }
+        if (hasOwn(setupState, key)) {
+            return setupState[key];
+        }
+        else if (hasOwn(props, key)) {
+            return props[key];
+        }
+        const publicGetter = publicPropertiesMap[key];
+        if (publicGetter) {
+            return publicGetter(instance);
+        }
+    },
+};
+
+function initSlots(instance, children) {
+    const { vnode } = instance;
+    if (vnode.shapeFlag & 32 /* ShapeFlags.SLOTS_CHILDREN */) {
+        normalizeObjectSlots(children, instance.slots);
+    }
+}
+const normalizeSlotValue = (value) => {
+    return Array.isArray(value) ? value : [value];
+};
+const normalizeObjectSlots = (children, slots) => {
+    for (const key in children) {
+        const value = children[key];
+        if (typeof value === "function") {
+            slots[key] = (props) => normalizeSlotValue(value(props));
+        }
+    }
+};
+
+function createComponentInstance(vnode, parent) {
+    const instance = {
+        vnode,
+        type: vnode.type,
+        setupState: {},
+        props: {},
+        slots: {},
+        provides: parent ? parent.provides : {},
+        parent,
+        isMounted: false,
+        emit: () => { },
+    };
+    instance.emit = emit.bind(null, instance);
+    return instance;
+}
+function setupComponent(instance) {
+    const { props, children } = instance.vnode;
+    initProps(instance, props);
+    initSlots(instance, children);
+    setupStatefulComponent(instance);
+}
+function setupStatefulComponent(instance) {
+    const Component = instance.type;
+    instance.proxy = new Proxy({ _: instance }, PublicInstanceProxyHandlers);
+    const { setup } = Component;
+    if (setup) {
+        setCurrentInstance(instance);
+        const setupResult = setup && setup(shallowReadonly(instance.props), { emit: instance.emit });
+        setCurrentInstance(null);
+        handleSetupResult(instance, setupResult);
+    }
+}
+function handleSetupResult(instance, setupResult) {
+    if (typeof setupResult === "function") {
+        instance.render = setupResult;
+    }
+    else if (typeof setupResult === "object") {
+        instance.setupState = proxyRefs(setupResult);
+    }
+    finishComponentSetup(instance);
+}
+function finishComponentSetup(instance) {
+    const Component = instance.type;
+    if (!instance.render) {
+        instance.render = Component.render;
+    }
+}
+let currentInstance = null;
+function getCurrentInstance() {
+    return currentInstance;
+}
+function setCurrentInstance(instance) {
+    currentInstance = instance;
+}
+
+function renderSlot(slots, name, props) {
+    const slot = slots[name];
+    if (slot) {
+        return createVNode(Fragment, {}, slot(props));
+    }
+}
+
+function provide(key, value) {
+    var _a;
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        let { provides } = currentInstance;
+        const parentProvides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
+        if (provides === parentProvides) {
+            provides = currentInstance.provides = Object.create(parentProvides);
+        }
+        provides[key] = value;
+    }
+}
+function inject(key, defaultValue) {
+    var _a;
+    const currentInstance = getCurrentInstance();
+    if (currentInstance) {
+        const provides = (_a = currentInstance.parent) === null || _a === void 0 ? void 0 : _a.provides;
+        if (key in provides) {
+            return provides[key];
+        }
+        else if (defaultValue) {
+            if (typeof defaultValue === "function") {
+                return defaultValue();
+            }
+            return defaultValue;
+        }
+    }
+}
+
+function createRenderer(options) {
+    const { createElement: hostCreateElement, patchProp: hostPatchProp, insert: hostInsert, } = options;
+    const render = (vnode, container) => {
+        patch(null, vnode, container);
+    };
+    function patch(n1, n2, container, parentComponent = null) {
+        const { type, shapeFlag } = n2;
+        switch (type) {
+            case Text:
+                processText(n1, n2, container);
+                break;
+            case Fragment:
+                processFragment(n1, n2, container);
+                break;
+            default:
+                if (shapeFlag & 1 /* ShapeFlags.ELEMENT */) {
+                    processElement(n1, n2, container);
+                }
+                else if (shapeFlag & 4 /* ShapeFlags.STATEFUL_COMPONENT */) {
+                    processComponent(n1, n2, container, parentComponent);
+                }
+        }
+    }
+    function processFragment(n1, n2, container) {
+        if (!n1) {
+            mountChildren(n2, container);
+        }
+    }
+    function processText(n1, n2, container) {
+        const { children } = n2;
+        const textNode = (n2.el = document.createTextNode(children));
+        container.append(textNode);
+    }
+    function processElement(n1, n2, container) {
+        if (!n1) {
+            mountElement(n2, container);
+        }
+        else {
+            updateElement(n1, n2);
+        }
+    }
+    function updateElement(n1, n2, container) {
+        console.log(n1, n2);
+    }
+    function mountElement(vnode, container) {
+        const el = (vnode.el = hostCreateElement(vnode.type));
+        const { children, shapeFlag } = vnode;
+        if (shapeFlag & 8 /* ShapeFlags.TEXT_CHILDREN */) {
+            el.textContent = children;
+        }
+        else if (shapeFlag & 16 /* ShapeFlags.ARRAY_CHILDREN */) {
+            mountChildren(vnode, el);
+        }
+        const { props } = vnode;
+        for (const key in props) {
+            const nextVal = props[key];
+            hostPatchProp(el, key, nextVal);
+        }
+        hostInsert(el, container);
+    }
+    function mountChildren(n2, container) {
+        n2.children.forEach((v) => {
+            patch(null, v, container);
+        });
+    }
+    function processComponent(n1, n2, container, parentComponent) {
+        mountComponent(n2, container, parentComponent);
+    }
+    function mountComponent(initialVNode, container, parentComponent) {
+        const instance = createComponentInstance(initialVNode, parentComponent);
+        setupComponent(instance);
+        setupRenderEffect(instance, initialVNode, container);
+    }
+    function setupRenderEffect(instance, initialVNode, container) {
+        function componentUpdateFn() {
+            if (!instance.isMounted) {
+                const { proxy } = instance;
+                const subTree = (instance.subTree = instance.render.call(proxy));
+                patch(null, subTree, container, instance);
+                initialVNode.el = subTree.el;
+                instance.isMounted = true;
+            }
+            else {
+                const { proxy } = instance;
+                const nextTree = instance.render.call(proxy);
+                const prevTree = instance.subTree;
+                instance.subTree = nextTree;
+                patch(prevTree, nextTree, container);
+            }
+        }
+        effect(componentUpdateFn);
+    }
+    return {
+        render,
+        createApp: createAppAPI(render),
+    };
 }
 
 function createElement(type) {
