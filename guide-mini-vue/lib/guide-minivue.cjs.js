@@ -564,7 +564,26 @@ function createRenderer(options) {
         }
     }
     function updateElement(n1, n2, container) {
-        console.log(n1, n2);
+        const oldProps = (n1 && n1.props) || {};
+        const newProps = n2.props || {};
+        const el = (n2.el = n1.el);
+        patchProps(el, oldProps, newProps);
+    }
+    function patchProps(el, oldProps, newProps) {
+        for (const key in newProps) {
+            const prevProp = oldProps[key];
+            const nextProp = newProps[key];
+            if (prevProp !== newProps) {
+                hostPatchProp(el, key, prevProp, nextProp);
+            }
+        }
+        for (const key in oldProps) {
+            const prevProp = oldProps[key];
+            const nextProp = null;
+            if (!(key in newProps)) {
+                hostPatchProp(el, key, prevProp, nextProp);
+            }
+        }
     }
     function mountElement(vnode, container) {
         const el = (vnode.el = hostCreateElement(vnode.type));
@@ -578,7 +597,7 @@ function createRenderer(options) {
         const { props } = vnode;
         for (const key in props) {
             const nextVal = props[key];
-            hostPatchProp(el, key, nextVal);
+            hostPatchProp(el, key, null, nextVal);
         }
         hostInsert(el, container);
     }
@@ -623,14 +642,19 @@ function createRenderer(options) {
 function createElement(type) {
     return document.createElement(type);
 }
-function patchProp(el, key, val) {
+function patchProp(el, key, preValue, nextValue) {
     const isOn = (key) => /^on[A-Z]/.test(key);
     if (isOn(key)) {
         const event = key.slice(2).toLowerCase();
-        el.addEventListener(event, val);
+        el.addEventListener(event, nextValue);
     }
     else {
-        el.setAttribute(key, val);
+        if (nextValue == null || nextValue === "") {
+            el.removeAttribute(key);
+        }
+        else {
+            el.setAttribute(key, nextValue);
+        }
     }
 }
 function insert(el, parent) {
