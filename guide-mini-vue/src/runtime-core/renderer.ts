@@ -7,6 +7,7 @@ import { Fragment, Text } from "./vnode";
 export function createRenderer(options) {
   const {
     createElement: hostCreateElement,
+    setElementText: hostSetElementText,
     patchProp: hostPatchProp,
     insert: hostInsert,
   } = options;
@@ -36,7 +37,7 @@ export function createRenderer(options) {
 
   function processFragment(n1, n2, container) {
     if (!n1) {
-      mountChildren(n2, container);
+      mountChildren(n2.children, container);
     }
   }
 
@@ -61,6 +62,8 @@ export function createRenderer(options) {
     const el = (n2.el = n1.el);
 
     patchProps(el, oldProps, newProps);
+
+    patchChildren(n1, n2, el);
   }
 
   function patchProps(el, oldProps, newProps) {
@@ -81,15 +84,30 @@ export function createRenderer(options) {
     }
   }
 
+  function patchChildren(n1, n2, container) {
+    const { shapeFlag: prevShapeFlag, children: c1 } = n1;
+    const { shapeFlag, children: c2 } = n2;
+    if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      if (c2 !== c1) {
+        hostSetElementText(container, c2);
+      }
+    } else {
+      if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+        hostSetElementText(container, "");
+        mountChildren(c2, container);
+      }
+    }
+  }
+
   function mountElement(vnode, container) {
     const el = (vnode.el = hostCreateElement(vnode.type));
 
     const { children, shapeFlag } = vnode;
 
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
-      el.textContent = children;
+      hostSetElementText(el, children);
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      mountChildren(vnode, el);
+      mountChildren(children, el);
     }
 
     const { props } = vnode;
@@ -101,8 +119,8 @@ export function createRenderer(options) {
     hostInsert(el, container);
   }
 
-  function mountChildren(n2, container) {
-    n2.children.forEach((v) => {
+  function mountChildren(children, container) {
+    children.forEach((v) => {
       patch(null, v, container);
     });
   }

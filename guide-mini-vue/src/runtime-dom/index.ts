@@ -4,6 +4,10 @@ function createElement(type) {
   return document.createElement(type);
 }
 
+function setElementText(el, text) {
+  el.textContent = text;
+}
+
 function patchProp(el, key, preValue, nextValue) {
   const isOn = (key: string) => /^on[A-Z]/.test(key);
   if (isOn(key)) {
@@ -26,6 +30,7 @@ const render: any = createRenderer({
   createElement,
   patchProp,
   insert,
+  setElementText,
 });
 
 export const createApp = (...args) => {
