@@ -537,6 +537,34 @@ function shouldUpdateComponent(prevVNode, nextVNode) {
     return false;
 }
 
+const queue = [];
+let isFlushPending = false;
+const p = Promise.resolve();
+function nextTick(fn) {
+    return fn ? p.then(fn) : p;
+}
+function queueJob(job) {
+    if (!queue.includes(job)) {
+        queue.push(job);
+        queueFlush();
+    }
+}
+function queueFlush() {
+    if (isFlushPending)
+        return;
+    isFlushPending = true;
+    nextTick(flushJobs);
+}
+function flushJobs() {
+    isFlushPending = false;
+    let job;
+    while ((job = queue.shift())) {
+        if (job) {
+            job();
+        }
+    }
+}
+
 function createRenderer(options) {
     const { createElement: hostCreateElement, setElementText: hostSetElementText, patchProp: hostPatchProp, insert: hostInsert, remove: hostRemove, } = options;
     const render = (vnode, container) => {
@@ -840,9 +868,15 @@ function createRenderer(options) {
                 patch(prevTree, nextTree, container, instance);
             }
         }
-        instance.update = effect(componentUpdateFn);
+        instance.update = effect(componentUpdateFn, {
+            scheduler: () => {
+                queueJob(instance.update);
+                console.log("update");
+            },
+        });
     }
     function updateComponentPreRender(instance, nextVNode) {
+        nextVNode.component = instance;
         instance.vnode = nextVNode;
         instance.next = null;
         instance.props = nextVNode.props;
@@ -908,6 +942,7 @@ exports.isProxy = isProxy;
 exports.isReactive = isReactive;
 exports.isReadonly = isReadonly;
 exports.isRef = isRef;
+exports.nextTick = nextTick;
 exports.provide = provide;
 exports.proxyRefs = proxyRefs;
 exports.reactive = reactive;

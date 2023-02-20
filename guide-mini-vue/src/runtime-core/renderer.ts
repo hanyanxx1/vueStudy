@@ -3,6 +3,7 @@ import { ShapeFlags } from "../shared/src/shapeFlags";
 import { createComponentInstance, setupComponent } from "./component";
 import { shouldUpdateComponent } from "./componentRenderUtils";
 import { createAppAPI } from "./createApp";
+import { queueJob } from "./scheduler";
 import { Fragment, Text } from "./vnode";
 
 export function createRenderer(options) {
@@ -355,10 +356,16 @@ export function createRenderer(options) {
       }
     }
 
-    instance.update = effect(componentUpdateFn);
+    instance.update = effect(componentUpdateFn, {
+      scheduler: () => {
+        queueJob(instance.update);
+        console.log("update");
+      },
+    });
   }
 
   function updateComponentPreRender(instance, nextVNode) {
+    nextVNode.component = instance;
     instance.vnode = nextVNode;
     instance.next = null;
 
