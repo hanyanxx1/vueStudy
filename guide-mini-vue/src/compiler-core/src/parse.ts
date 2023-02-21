@@ -110,7 +110,6 @@ function parseInterpolation(context) {
 }
 
 function parseText(context) {
-  console.log("------", context.source);
 
   let endIndex = context.source.length;
   const endTokens = ["<", "{{"];
