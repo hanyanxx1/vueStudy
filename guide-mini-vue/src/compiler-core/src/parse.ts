@@ -110,7 +110,6 @@ function parseInterpolation(context) {
 }
 
 function parseText(context) {
-
   let endIndex = context.source.length;
   const endTokens = ["<", "{{"];
 
@@ -148,7 +147,9 @@ function createParserContext(content) {
 
 function createRoot(children) {
   return {
+    type: NodeTypes.ROOT,
     children,
+    helpers: [],
   };
 }
 
