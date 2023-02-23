@@ -18,3 +18,7 @@
 
 - 扁平化 多个 store， 没用 mutation 了， 支持 ts， 小，支持 devtool
 - vue2 辅助函数 mapState mapGetters mapActions 都支持
+
+## 实现的功能
+
+- createOptionStore(内部会拿到用户的选项将他变成setup语法) createSetupStore(用户传递的就是setup可以直接使用)

@@ -24,3 +24,5 @@ export function createPinia() {
   };
   return pinia;
 }
+
+// 目前我们的pinia - 可以再组件中使用
