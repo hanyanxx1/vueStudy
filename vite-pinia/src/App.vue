@@ -4,6 +4,7 @@ import { useCounterStore1 } from "./stores/counter1";
 const store1 = useCounterStore1();
 const { increment } = useCounterStore1();
 const handleClick1 = () => {
+  // store1.increment(3);
   increment(3);
 };
 
