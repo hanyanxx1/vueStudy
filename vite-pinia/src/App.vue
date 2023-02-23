@@ -1,6 +1,6 @@
 <script setup>
 import { useCounterStore1 } from "./stores/counter1";
-// import { useCounterStore2 } from "./stores/counter2";
+import { useCounterStore2 } from "./stores/counter2";
 const store1 = useCounterStore1();
 const { increment } = useCounterStore1();
 const handleClick1 = () => {
@@ -8,10 +8,10 @@ const handleClick1 = () => {
   increment(3);
 };
 
-// const store2 = useCounterStore2();
-// const handleClick2 = () => {
-//   store2.increment(3);
-// };
+const store2 = useCounterStore2();
+const handleClick2 = () => {
+  store2.increment(3);
+};
 </script>
 
 <template>
@@ -22,9 +22,9 @@ const handleClick1 = () => {
   <hr color="red" />
 
   ----------------setup--------------<br />
-  <!-- {{ store2.count }}
-  {{ store2.double }} -->
-  <!-- <button @click="handleClick2">修改状态</button> -->
+  {{ store2.count }}
+  {{ store2.double }}
+  <button @click="handleClick2">修改状态</button>
 </template>
 
 <style scoped></style>
