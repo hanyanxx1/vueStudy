@@ -16,10 +16,12 @@ const handleClick1 = () => {
   //对象调用
   // store1.$patch({ count: 1000 });
   //函数调用
-  store1.$patch((state) => {
-    //可以放逻辑
-    state.count = 2000;
-  });
+  // store1.$patch((state) => {
+  //   //可以放逻辑
+  //   state.count = 2000;
+  // });
+
+  store1.$state = { count: 10000 };
 };
 const handleReset1 = () => {
   store1.$reset();
@@ -50,6 +52,10 @@ store2.$onAction(function ({ after, onError }) {
     console.log("error2", err);
   });
 });
+
+function handleDispose() {
+  store1.$dispose(); //scope.run收集effect的scope.stop是停止effect
+}
 </script>
 
 <template>
@@ -58,6 +64,8 @@ store2.$onAction(function ({ after, onError }) {
   {{ store1.double }}
   <button @click="handleClick1">修改状态</button>
   <button @click="handleReset1">重置状态</button>
+
+  <button @click="handleDispose">卸载响应式</button>
   <hr color="red" />
 
   ----------------setup--------------<br />

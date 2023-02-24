@@ -74,6 +74,11 @@ function createSetupStore(id, setup, pinia, isOption) {
       );
     },
     $onAction: addSubscription.bind(null, actionSubscriptions),
+    $dispose() {
+      scope.stop(); //清除响应式
+      actionSubscriptions = []; //取消订阅
+      pinia._s.delete(id);
+    },
   };
 
   // 后续一些不是用户定义的属性和方法，内置的api会增加到这个store上
@@ -91,7 +96,8 @@ function createSetupStore(id, setup, pinia, isOption) {
     scope = effectScope();
     return scope.run(() => setup());
   });
-  function wrapAction(name, action) { // 对action做拦截
+  function wrapAction(name, action) {
+    // 对action做拦截
     return function () {
       const afterCallbackList = [];
       const onErrorCallbackList = [];
@@ -106,7 +112,6 @@ function createSetupStore(id, setup, pinia, isOption) {
       let ret;
       try {
         ret = action.apply(store, arguments);
-        triggerSubscriptions(afterCallbackList, ret);
       } catch (error) {
         triggerSubscriptions(onErrorCallbackList, e);
       }
@@ -114,13 +119,14 @@ function createSetupStore(id, setup, pinia, isOption) {
       if (ret instanceof Promise) {
         return ret
           .then((value) => {
-            triggerSubscriptions(afterCallbackList, value);
+            return triggerSubscriptions(afterCallbackList, value);
           })
           .catch((e) => {
             triggerSubscriptions(onErrorCallbackList, e);
+            return Promise.reject(e);
           });
       }
-
+      triggerSubscriptions(afterCallbackList, ret);
       return ret;
     };
   }
@@ -142,6 +148,11 @@ function createSetupStore(id, setup, pinia, isOption) {
   }
   pinia._s.set(id, store); // 将store 和 id映射起来
   Object.assign(store, setupStore);
+  //可以操作store的所有属性
+  Object.defineProperty(store, "$state", {
+    get: () => pinia.state.value[id],
+    set: (state) => $patch(($state) => Object.assign($state, state)),
+  });
   return store;
 }
 
