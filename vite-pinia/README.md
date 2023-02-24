@@ -22,3 +22,4 @@
 ## 实现的功能
 
 - createOptionStore(内部会拿到用户的选项将他变成setup语法) createSetupStore(用户传递的就是setup可以直接使用)
+- 修改状态可以通过 .xxx=新值   action来修改

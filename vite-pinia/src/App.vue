@@ -5,7 +5,21 @@ const store1 = useCounterStore1();
 const { increment } = useCounterStore1();
 const handleClick1 = () => {
   // store1.increment(3);
-  increment(3);
+  // increment(3);
+
+  // 3次更新
+  // store1.count++;
+  // store1.count++;
+  // store1.count++;
+
+  // 很像setState({})
+  //对象调用
+  // store1.$patch({ count: 1000 });
+  //函数调用
+  store1.$patch((state) => {
+    //可以放逻辑
+    state.count = 1000;
+  });
 };
 
 const store2 = useCounterStore2();

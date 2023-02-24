@@ -1,5 +1,5 @@
 // import { defineStore } from "pinia";
-import { defineStore } from "../pinia/index";
+import { defineStore } from "../pinia";
 
 // defineStore中的id是独一无二的
 // {counter=> state, counter -> state}

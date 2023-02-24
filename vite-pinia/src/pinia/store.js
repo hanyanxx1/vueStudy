@@ -16,6 +16,7 @@ import {
   computed,
   isRef,
   isReactive,
+  toRefs,
 } from "vue";
 import { piniaSymbol } from "./rootStore";
 
@@ -24,11 +25,43 @@ function isComputed(v) {
   return !!(isRef(v) && v.effect);
 }
 
+function isObject(value) {
+  return typeof value === "object" && value !== null;
+}
+
+//递归合并两个对象
+function mergeReactiveObject(target, state) {
+  for (let key in state) {
+    let oldValue = target[key];
+    let newValue = state[key]; //在这里循环的时候，拿出来，丧失响应式
+    if (isObject(oldValue) && isObject(newValue)) {
+      target[key] = mergeReactiveObject(oldValue, newValue);
+    } else {
+      target[key] = newValue;
+    }
+  }
+  return target;
+}
+
 // 核心方法
 function createSetupStore(id, setup, pinia, isOption) {
   let scope;
+
+  function $patch(pratialStateOrMutatior) {
+    if (typeof pratialStateOrMutatior === "object") {
+      //用新的状态 合并老的状态
+      mergeReactiveObject(pinia.state.value[id], pratialStateOrMutatior);
+    } else {
+      pratialStateOrMutatior(pinia.state.value[id]);
+    }
+  }
+
+  const pratialStore = {
+    $patch,
+  };
+
   // 后续一些不是用户定义的属性和方法，内置的api会增加到这个store上
-  const store = reactive({}); // store就是一个响应式对象而已
+  const store = reactive(pratialStore); // store就是一个响应式对象而已
 
   const initialState = pinia.state.value[id]; //对于setup api 没有初始化状态
 
@@ -63,7 +96,7 @@ function createSetupStore(id, setup, pinia, isOption) {
     //如何看这个值是不是状态
     //computed 也是 ref
     if ((isRef(prop) && !isComputed(prop)) || isReactive(prop)) {
-      if (isOption) {
+      if (!isOption) {
         pinia.state.value[id][key] = prop;
       }
     }
@@ -78,7 +111,9 @@ function createOptionsStore(id, options, pinia) {
 
   function setup() {
     // 这里面会对用户传递的state，actions getters 做处理
-    const localState = (pinia.state.value[id] = state ? state() : {});
+    pinia.state.value[id] = state ? state() : {};
+
+    const localState = toRefs(pinia.state.value[id]); //我们需要将状态转成ref,普通值是没有响应式的，需要转换成ref才具备响应式
     // getters
     return Object.assign(
       localState, // 用户的状态
