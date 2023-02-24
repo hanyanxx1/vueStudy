@@ -17,8 +17,10 @@ import {
   isRef,
   isReactive,
   toRefs,
+  watch,
 } from "vue";
 import { piniaSymbol } from "./rootStore";
+import { addSubscription, triggerSubscriptions } from "./subscribe";
 
 function isComputed(v) {
   // 计算属性是ref 同时也是一个effect
@@ -56,8 +58,22 @@ function createSetupStore(id, setup, pinia, isOption) {
     }
   }
 
+  let actionSubscriptions = [];
   const pratialStore = {
     $patch,
+    $subscribe(callback, options = {}) {
+      // 每次状态变化，都会触发此函数
+      scope.run(() =>
+        watch(
+          pinia.state.value[id],
+          (state) => {
+            callback({ storeId: id }, state);
+          },
+          options
+        )
+      );
+    },
+    $onAction: addSubscription.bind(null, actionSubscriptions),
   };
 
   // 后续一些不是用户定义的属性和方法，内置的api会增加到这个store上
@@ -75,12 +91,35 @@ function createSetupStore(id, setup, pinia, isOption) {
     scope = effectScope();
     return scope.run(() => setup());
   });
-  function wrapAction(name, action) {
+  function wrapAction(name, action) { // 对action做拦截
     return function () {
-      let ret = action.apply(store, arguments);
+      const afterCallbackList = [];
+      const onErrorCallbackList = [];
 
-      // action执行后可能是promise
-      // todo ...
+      function after(callback) {
+        afterCallbackList.push(callback);
+      }
+      function onError(callback) {
+        onErrorCallbackList.push(callback);
+      }
+      triggerSubscriptions(actionSubscriptions, { after, onError });
+      let ret;
+      try {
+        ret = action.apply(store, arguments);
+        triggerSubscriptions(afterCallbackList, ret);
+      } catch (error) {
+        triggerSubscriptions(onErrorCallbackList, e);
+      }
+
+      if (ret instanceof Promise) {
+        return ret
+          .then((value) => {
+            triggerSubscriptions(afterCallbackList, value);
+          })
+          .catch((e) => {
+            triggerSubscriptions(onErrorCallbackList, e);
+          });
+      }
 
       return ret;
     };
@@ -129,7 +168,13 @@ function createOptionsStore(id, options, pinia) {
     );
   }
 
-  createSetupStore(id, setup, pinia, true);
+  const store = createSetupStore(id, setup, pinia, true);
+  store.$reset = function () {
+    const newState = state ? state() : {};
+    store.$patch((state) => {
+      Object.assign(state, newState); // 默认状态覆盖掉老状态
+    });
+  };
 }
 
 export function defineStore(idOrOptions, setup) {

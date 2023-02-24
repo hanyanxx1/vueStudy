@@ -6,6 +6,7 @@ import { ref, computed } from "vue";
 export const useCounterStore2 = defineStore("counter2", () => {
   const count = ref(10);
   const increment = () => {
+    console.log("触发actions")
     count.value *= 2;
   };
   const double = computed(() => {
