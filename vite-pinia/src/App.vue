@@ -1,11 +1,12 @@
 <script setup>
+import { storeToRefs } from "./pinia/storeToRefs";
 import { useCounterStore1 } from "./stores/counter1";
 import { useCounterStore2 } from "./stores/counter2";
 const store1 = useCounterStore1();
 const { increment } = useCounterStore1();
 const handleClick1 = () => {
   // store1.increment(3);
-  // increment(3);
+  increment(3);
 
   // 3次更新
   // store1.count++;
@@ -21,7 +22,7 @@ const handleClick1 = () => {
   //   state.count = 2000;
   // });
 
-  store1.$state = { count: 10000 };
+  // store1.$state = { count: 10000 };
 };
 const handleReset1 = () => {
   store1.$reset();
@@ -56,12 +57,17 @@ store2.$onAction(function ({ after, onError }) {
 function handleDispose() {
   store1.$dispose(); //scope.run收集effect的scope.stop是停止effect
 }
+
+// 用pinia解构 store 不要用 toRefs 要使用storeToRefs 可以跳过函数处理
+const { count, double } = storeToRefs(store1);
 </script>
 
 <template>
   ----------------options-------------- <br />
-  {{ store1.count }} /
-  {{ store1.double }}
+  <!-- {{ store1.count }} /
+  {{ store1.double }} -->
+  {{ count }} /
+  {{ double }}
   <button @click="handleClick1">修改状态</button>
   <button @click="handleReset1">重置状态</button>
 

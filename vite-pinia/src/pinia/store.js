@@ -19,6 +19,7 @@ import {
   toRefs,
   watch,
 } from "vue";
+import { activePinia, setActivePinia } from "./createPinia";
 import { piniaSymbol } from "./rootStore";
 import { addSubscription, triggerSubscriptions } from "./subscribe";
 
@@ -146,13 +147,24 @@ function createSetupStore(id, setup, pinia, isOption) {
       }
     }
   }
+  store.$id = id;
   pinia._s.set(id, store); // 将store 和 id映射起来
+
   Object.assign(store, setupStore);
   //可以操作store的所有属性
   Object.defineProperty(store, "$state", {
     get: () => pinia.state.value[id],
     set: (state) => $patch(($state) => Object.assign($state, state)),
   });
+
+  pinia._p.forEach((plugin) => {
+    // 将插件的返回值作为store的属性
+    Object.assign(
+      store,
+      scope.run(() => plugin({ store }))
+    );
+  });
+
   return store;
 }
 
@@ -206,8 +218,12 @@ export function defineStore(idOrOptions, setup) {
   function useStore() {
     // 在这里我们拿到的store 应该是同一个
     let instance = getCurrentInstance();
-    const pinia = instance && inject(piniaSymbol);
+    let pinia = instance && inject(piniaSymbol);
 
+    if (pinia) {
+      setActivePinia(pinia);
+    }
+    pinia = activePinia;
     if (!pinia._s.has(id)) {
       // 第一次useStore
 
