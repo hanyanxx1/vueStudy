@@ -68,7 +68,9 @@ export function effect(fn, options: any = {}) {
 
   Object.assign(_effect, options);
   extend(_effect, options);
-  _effect.run();
+  if (!options || !options.lazy) {
+    _effect.run();
+  }
 
   const runner: any = _effect.run.bind(_effect);
   runner.effect = _effect;
