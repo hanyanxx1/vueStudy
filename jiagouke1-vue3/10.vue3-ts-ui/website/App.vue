@@ -1,4 +1,4 @@
 <template>
   <z-button></z-button>
-  <z-icon></z-icon>
+  <z-icon name="loading"></z-icon>
 </template>
