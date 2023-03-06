@@ -41,15 +41,21 @@
     </z-row>
   </div>
   <hr />
+  {{ checkVal }}
+  <z-checkbox-group v-model="checkVal" @change="checkboxChange">
+    <z-checkbox v-for="c in checks" :key="c" :label="c"></z-checkbox>
+  </z-checkbox-group>
 </template>
 
 <script lang="ts">
 import { defineComponent } from "vue";
 import { useButton } from "./hook/useButton";
+import { useCheckbox } from "./hook/useCheckbox";
 export default defineComponent({
   setup() {
     return {
       ...useButton(),
+      ...useCheckbox(),
     };
   },
 });

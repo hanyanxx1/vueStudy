@@ -4,7 +4,17 @@ import Icon from "@z-ui/icon";
 import ButtonGroup from "@z-ui/button-group";
 import Row from "@z-ui/row";
 import Col from "@z-ui/col";
-const components = [Button, Icon, ButtonGroup, Row, Col];
+import Checkbox from "@z-ui/checkbox";
+import CheckboxGroup from "@z-ui/checkbox-group";
+const components = [
+  Button,
+  Icon,
+  ButtonGroup,
+  Row,
+  Col,
+  Checkbox,
+  CheckboxGroup,
+];
 const install = (app: App): void => {
   components.forEach((component) => {
     app.component(component.name, component);
