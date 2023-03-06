@@ -6,6 +6,8 @@ import Row from "@z-ui/row";
 import Col from "@z-ui/col";
 import Checkbox from "@z-ui/checkbox";
 import CheckboxGroup from "@z-ui/checkbox-group";
+import Transfer from '@z-ui/transfer';
+
 const components = [
   Button,
   Icon,
@@ -14,6 +16,7 @@ const components = [
   Col,
   Checkbox,
   CheckboxGroup,
+  Transfer
 ];
 const install = (app: App): void => {
   components.forEach((component) => {

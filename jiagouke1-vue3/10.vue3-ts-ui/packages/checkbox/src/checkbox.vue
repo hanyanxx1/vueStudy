@@ -30,8 +30,8 @@ export default defineComponent({
     indeterminate: Boolean,
     checked: Boolean,
     disabled: Boolean,
-    label: [String, Number],
-    modelValue: [String, Number],
+    label: [String, Number, Boolean],
+    modelValue: [String, Number, Boolean],
   },
   emits: ["update:modelValue", "change"],
   setup(props) {

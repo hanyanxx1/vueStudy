@@ -45,17 +45,46 @@
   <z-checkbox-group v-model="checkVal" @change="checkboxChange">
     <z-checkbox v-for="c in checks" :key="c" :label="c"></z-checkbox>
   </z-checkbox-group>
+  <z-transfer
+    v-model="rightValue"
+    :data="transferData"
+    :props="transferProp"
+  ></z-transfer>
 </template>
 
 <script lang="ts">
-import { defineComponent } from "vue";
+import { defineComponent, ref } from "vue";
 import { useButton } from "./hook/useButton";
 import { useCheckbox } from "./hook/useCheckbox";
+function useTransfer() {
+  const generateData = () => {
+    const data = [];
+    for (let i = 1; i <= 15; i++) {
+      data.push({
+        key: i,
+        label: `备选项 ${i}`,
+        disabled: i % 4 === 0,
+      });
+    }
+    return ref(data);
+  };
+
+  return {
+    transferData: generateData(),
+    rightValue: ref([1, 4]),
+    transferProp: {
+      key: "key",
+      label: "label",
+      disabled: "disabled",
+    },
+  };
+}
 export default defineComponent({
   setup() {
     return {
       ...useButton(),
       ...useCheckbox(),
+      ...useTransfer(),
     };
   },
 });
