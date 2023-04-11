@@ -37,22 +37,25 @@ export default defineComponent({
       type: String,
       default: "",
     },
-    disabled: Boolean,
+    disabeld: Boolean,
     loading: Boolean,
     round: Boolean,
   },
   emits: ["click"],
+
   setup(props, ctx) {
+    // instance 里面摘出了几个属性 给了ctx
+    // 我们所有的组件都不会在用optionsApi (this) 全部采用compostionApi
     const classs = computed(() => [
+      // --
       "z-button",
       "z-button--" + props.type,
       {
-        "is-disabled": props.disabled,
+        "is-disabled": props.disabeld,
         "is-loading": props.loading,
         "is-round": props.round,
       },
     ]);
-
     const handleClick = (e) => {
       ctx.emit("click", e);
     };

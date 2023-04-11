@@ -1,6 +1,6 @@
 // createVNode  创建虚拟节点
 
-import { isArray, isObject, isString, ShapeFlags } from "@vue/shared";
+import { isArray, isObject, isString, ShapeFlags } from "@vue/shared/src";
 
 export function isVnode(vnode) {
   return vnode.__v_isVnode;
@@ -29,7 +29,6 @@ export const createVNode = (type, props, children = null) => {
     key: props && props.key, // diff算法会用到key
     shapeFlag, // 判断出当前自己的类型 和 儿子的类型
   };
-
   normalizeChildren(vnode, children);
   return vnode;
 };

@@ -16,7 +16,7 @@ const injectHook = (type, hook, target) => {
       "injection APIs can only be used during execution of setup()."
     );
   } else {
-    const hooks = target[type] || (target[type] = []);
+    const hooks = target[type] || (target[type] = []); // instance.bm = []
     const wrap = () => {
       setCurrentInstance(target); // currentInstance = 自己的
       hook.call(target);

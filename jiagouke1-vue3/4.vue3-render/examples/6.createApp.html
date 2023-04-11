@@ -6,32 +6,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
   </head>
+
   <body>
-    <div id="app"></div>
     <script src="../node_modules/@vue/runtime-dom/dist/runtime-dom.global.js"></script>
+    <div id="app"></div>
     <script>
-      let { createApp, h, reactive, effect } = VueRuntimeDOM;
+      let { createApp, h, reactive } = VueRuntimeDOM;
       let App = {
         // getCurrentInstance = > instance
         setup(props, context) {
           // instance 里面包含的内容 会提取一些传递给context
-          let state = reactive({ name: "hy", age: 32 });
+          let state = reactive({ name: "zf" });
           let fn = function () {
-            state.name = "hy1";
-            state.name = "hy2";
-            state.name = "hy3";
-            state.name = "hy4";
-            state.age = 33;
+            state.name = "jw";
+            state.name = "zf";
+            state.name = "jw";
+            state.name = "zf";
           };
           return () => {
-            // h("div", { a: 1 });
-            // h("div", { a: 1 }, "helloworld");
-            // h("div", { a: 1 }, h("span"));
-            // h("div", h("span"));
-            // h("div", [h("span"),h("span")]);
-            // h("div", null, h("span"),h("span"));
-            // h("div", null, 'a', 'b', 'c');
-            return h("div", { onClick: fn }, [state.name, state.age]);
+            // h('div',{a:1});
+            // h('div',{},'helloworld');
+            // h('div',{},h('span'));
+            // h('div',h('span'));
+            // h('div',[h('span'),h('span')]);
+            // h('div',null,h('span'),h('span'));
+            // h('div',null,'a','b','c');
+            return h("div", { onClick: fn }, state.name);
           };
         },
       };

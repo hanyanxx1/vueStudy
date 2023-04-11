@@ -1,7 +1,7 @@
 import { defineComponent, openBlock, createBlock } from 'vue';
 
 var script = defineComponent({
-    name: "ZButton",
+    name: 'ZButton'
 });
 
 function render(_ctx, _cache, $props, $setup, $data, $options) {
@@ -14,5 +14,6 @@ script.__file = "packages/button/src/button.vue";
 script.install = (app) => {
     app.component(script.name, script); // 注册全局组件
 };
+const _Button = script;
 
-export default script;
+export default _Button;

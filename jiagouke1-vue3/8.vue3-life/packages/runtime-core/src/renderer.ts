@@ -1,5 +1,5 @@
-import { effect } from "@vue/reactivity";
-import { ShapeFlags } from "@vue/shared";
+import { effect } from "@vue/reactivity/src";
+import { ShapeFlags } from "@vue/shared/src";
 import { createAppAPI } from "./apiCreateApp";
 import { invokeArrayFns } from "./apiLifecycle";
 import { createComponentInstance, setupComponent } from "./component";
@@ -26,10 +26,11 @@ export function createRenderer(rendererOptions) {
     // 需要创建一个effect 在effect中调用 render方法，这样render方法中拿到的数据会收集这个effect，属性更新时effect会重新执行
     instance.update = effect(
       function componentEffect() {
+        // 每个组件都有一个effect， vue3 是组件级更新，数据变化会重新执行对应组件的effect
         if (!instance.isMounted) {
           // 初次渲染
           let { bm, m } = instance;
-          
+
           if (bm) {
             invokeArrayFns(bm);
           }
@@ -83,7 +84,7 @@ export function createRenderer(rendererOptions) {
     const instance = (initialVNode.component =
       createComponentInstance(initialVNode));
     // 2.需要的数据解析到实例上
-    setupComponent(instance);
+    setupComponent(instance); // state props attrs render ....
     // 3.创建一个effect 让render函数执行
     setupRenderEfect(instance, container);
   };
@@ -95,7 +96,7 @@ export function createRenderer(rendererOptions) {
       // 组件更新流程
     }
   };
-  // -------------------组件----------------------
+  // ------------------组件 ------------------
 
   //----------------- 处理元素-----------------
   const mountChildren = (children, container) => {
@@ -158,7 +159,6 @@ export function createRenderer(rendererOptions) {
       }
       i++;
     }
-
     // sync from end
     while (i <= e1 && i <= e2) {
       const n1 = c1[e1];
@@ -179,7 +179,7 @@ export function createRenderer(rendererOptions) {
     // 如果完成后 最终i的值大于e1 说明老的少
 
     if (i > e1) {
-      // 老的少 新的多  有一方已经完全比对完成了
+      // 老的少 新的多   有一方已经完全比对完成了
       if (i <= e2) {
         // 表示有新增的部分
         const nextPos = e2 + 1;
@@ -203,10 +203,10 @@ export function createRenderer(rendererOptions) {
       let s2 = i;
 
       // vue3 用的是新的做的映射表 vue2 用的是老的做的映射表
-      const keyToNewIndexMap = new Map();
+      const keyToNewIndexMap = new Map(); // 索引 ： 值 weakMap :key 对象
 
       for (let i = s2; i <= e2; i++) {
-        const childVNode = c2[i];
+        const childVNode = c2[i]; // child
         keyToNewIndexMap.set(childVNode.key, i);
       }
 
@@ -224,19 +224,18 @@ export function createRenderer(rendererOptions) {
           // 新老的比对 , 比较完毕后位置有差异
           // 新的和旧的关系 索引的关系
           newIndexToOldIndexMap[newIndex - s2] = i + 1;
-          patch(oldVnode, c2[newIndex], el);
+          patch(oldVnode, c2[newIndex], el); // patch的操作 是不是会复用元素 更新属性 比较儿子
         }
       }
       // [5,3,4,0] => [1,2]
       let increasingNewIndexSequence = getSequence(newIndexToOldIndexMap);
-      let j = increasingNewIndexSequence.length - 1;
 
+      let j = increasingNewIndexSequence.length - 1; // 取出最后一个人的索引
       for (let i = toBePatched - 1; i >= 0; i--) {
         let currentIndex = i + s2; // 找到h的索引
         let child = c2[currentIndex]; // 找到h对应的节点
-        // 第一次插入h 后 h是一个虚拟节点，同时插入后 虚拟节点会
         let anchor =
-          currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null;
+          currentIndex + 1 < c2.length ? c2[currentIndex + 1].el : null; // 第一次插入h 后 h是一个虚拟节点，同时插入后 虚拟节点会
 
         if (newIndexToOldIndexMap[i] == 0) {
           // 如果自己是0说明没有被patch过
@@ -268,6 +267,7 @@ export function createRenderer(rendererOptions) {
     let end;
     let middle;
     for (let i = 0; i < len; i++) {
+      // O(n)
       const arrI = arr[i];
       if (arrI !== 0) {
         let resultLastIndex = result[result.length - 1];
@@ -282,7 +282,7 @@ export function createRenderer(rendererOptions) {
         start = 0;
         end = result.length - 1;
         while (start < end) {
-          // 重合就说明找到了 对应的值
+          // 重合就说明找到了 对应的值  // O(logn)
           middle = ((start + end) / 2) | 0; // 找到中间位置的前一个
           if (arr[result[middle]] < arrI) {
             start = middle + 1;
@@ -317,8 +317,8 @@ export function createRenderer(rendererOptions) {
     }
   };
   const patchChildren = (n1, n2, el) => {
-    const c1 = n1.children; // 老儿子
-    const c2 = n2.children; // 新儿子
+    const c1 = n1.children; // 新老儿子
+    const c2 = n2.children;
 
     // 老的有儿子 新的没儿子  新的有儿子老的没儿子  新老都有儿子  新老都是文本
 
@@ -330,7 +330,6 @@ export function createRenderer(rendererOptions) {
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         unmountChildren(c1); // 如果c1 中包含组件会调用组件的销毁方法
       }
-
       // 两个人都是文本情况
       if (c2 !== c1) {
         // case2：两个都是文本
@@ -394,6 +393,8 @@ export function createRenderer(rendererOptions) {
     return n1.type === n2.type && n1.key === n2.key;
   };
   const unmount = (n1) => {
+    // 如果是组件 调用的组件的生命周期等
+
     hostRemove(n1.el);
   };
   const patch = (n1, n2, container, anchor = null) => {
@@ -406,6 +407,7 @@ export function createRenderer(rendererOptions) {
       unmount(n1);
       n1 = null; // 重新渲染n2 对应的内容
     }
+
     switch (type) {
       case Text:
         processText(n1, n2, container);

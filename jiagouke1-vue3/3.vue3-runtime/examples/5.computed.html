@@ -17,7 +17,6 @@
 
       const age = ref(18);
       const myAge = computed(() => {
-        console.log("run");
         // 此方法默认不会被执行
         return age.value + 10;
       });
@@ -27,11 +26,11 @@
       // })
 
       // 当访问属性的时候执行
-      // console.log(myAge.value);
-      // console.log(myAge.value); // 缓存
+      // console.log(myAge.value)
+      //console.log(myAge.value)// 缓存
 
       // age.value = 100; // 更新age，myAge不会立刻重新计算
-      // myAge.value; // 再次计算最新
+      //  myAge.value; // 再次计算最新值
 
       effect(() => {
         // 此effect中没有age

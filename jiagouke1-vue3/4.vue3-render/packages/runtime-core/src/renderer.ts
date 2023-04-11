@@ -1,5 +1,5 @@
-import { effect } from "@vue/reactivity";
-import { ShapeFlags } from "@vue/shared";
+import { effect } from "@vue/reactivity/src";
+import { ShapeFlags } from "@vue/shared/src";
 import { createAppAPI } from "./apiCreateApp";
 import { createComponentInstance, setupComponent } from "./component";
 import { queueJob } from "./scheduler";
@@ -22,8 +22,10 @@ export function createRenderer(rendererOptions) {
   // -------------------组件----------------------
   const setupRenderEfect = (instance, container) => {
     // 需要创建一个effect 在effect中调用 render方法，这样render方法中拿到的数据会收集这个effect，属性更新时effect会重新执行
+
     instance.update = effect(
       function componentEffect() {
+        // 每个组件都有一个effect， vue3 是组件级更新，数据变化会重新执行对应组件的effect
         if (!instance.isMounted) {
           // 初次渲染
           let proxyToUse = instance.proxy;
@@ -55,7 +57,7 @@ export function createRenderer(rendererOptions) {
     const instance = (initialVNode.component =
       createComponentInstance(initialVNode));
     // 2.需要的数据解析到实例上
-    setupComponent(instance);
+    setupComponent(instance); // state props attrs render ....
     // 3.创建一个effect 让render函数执行
     setupRenderEfect(instance, container);
   };
@@ -67,7 +69,7 @@ export function createRenderer(rendererOptions) {
       // 组件更新流程
     }
   };
-  // -------------------组件----------------------
+  // ------------------组件 ------------------
 
   //----------------- 处理元素-----------------
   const mountChildren = (children, container) => {
@@ -109,7 +111,6 @@ export function createRenderer(rendererOptions) {
     }
   };
   // -----------------文本处理-----------------
-
   const patch = (n1, n2, container) => {
     // 针对不同类型 做初始化操作
     const { shapeFlag, type } = n2;

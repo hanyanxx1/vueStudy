@@ -4,8 +4,9 @@
       :data="sourceData"
       :props="props"
       @checked-change="onSoureCheckedChange"
-    ></ZTransferPanel>
-    <div class="transfer__buttons">
+    >
+    </ZTransferPanel>
+    <div class="z-transfer__buttons">
       <z-button
         icon="z-icon-arrow-left-bold"
         @click="addToLeft"
@@ -22,7 +23,8 @@
       :data="targetData"
       :props="props"
       @checked-change="onTargetCheckedChange"
-    ></ZTransferPanel>
+    >
+    </ZTransferPanel>
   </div>
 </template>
 <script lang="ts">
@@ -31,7 +33,6 @@ import ZTransferPanel from "./transfer-panel.vue";
 import ZButton from "@z-ui/button";
 import { DataItem, Key, Props } from "./transfer.type";
 import { useComputedData } from "./useComputedData";
-
 export default defineComponent({
   name: "ZTransfer",
   components: {
@@ -41,28 +42,22 @@ export default defineComponent({
   props: {
     data: {
       type: Array as PropType<DataItem[]>,
-      default: () => ({
-        label: "label",
-        key: "key",
-        disabeld: "disabeld",
-      }),
     },
     modelValue: {
       type: Array as PropType<Key[]>,
-      default: [],
     },
     props: {
       type: Object as PropType<Props>,
       default: () => ({
         label: "label",
         key: "key",
-        disabeld: "disabeld",
+        disabeld: "disabled",
       }),
     },
   },
   setup(props, { emit }) {
     // 1.需要将数据 分成两堆  一边放左 一边放右边
-    let { sourceData, targetData } = useComputedData(props);
+    let { propsKey, sourceData, targetData } = useComputedData(props);
 
     const checkedState = reactive({
       leftChecked: [],
@@ -75,7 +70,6 @@ export default defineComponent({
     const onTargetCheckedChange = (rightValue) => {
       checkedState.rightChecked = rightValue;
     };
-
     // 左 -》 右 [1,4]  好写 因未 只需要将左边选中的key 给 右边即可  -》 modelValue
     // 右 -》 左
     const addToLeft = () => {
@@ -91,8 +85,6 @@ export default defineComponent({
     };
     const addToRight = () => {
       // 将当前左边的 映射成 key  和 右边的拼接一下 ，把数据发射出去即可
-      const currentValue = props.modelValue.concat(checkedState.leftChecked);
-      emit("update:modelValue", currentValue);
     };
 
     return {

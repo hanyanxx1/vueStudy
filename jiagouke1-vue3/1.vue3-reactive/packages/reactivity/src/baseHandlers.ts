@@ -6,7 +6,7 @@ import {
   isArray,
   isIntegerKey,
   isObject,
-} from "@vue/shared";
+} from "@vue/shared/src";
 import { track, trigger } from "./effect";
 import { TrackOpTypes, TriggerOrTypes } from "./operators";
 import { reactive, readonly } from "./reactive";
@@ -56,10 +56,10 @@ function createGetter(isReadonly = false, shallow = false) {
     // Reflect 方法具备返回值
     // reflect 使用可以不使用 proxy es6语法
 
-    const res = Reflect.get(target, key, receiver);
+    const res = Reflect.get(target, key, receiver); // target[key];
     if (!isReadonly) {
       // 收集依赖，等会数据变化后更新对应的视图
-      // console.log("执行effect时会取值", "收集effect:", "key:" + key);
+      console.log("执行effect时会取值", "收集effect");
 
       track(target, TrackOpTypes.GET, key);
     }
@@ -74,16 +74,16 @@ function createGetter(isReadonly = false, shallow = false) {
   };
 }
 function createSetter(shallow = false) {
-  // 拦截设置功能
+  // 蓝爵设置功能
   return function set(target, key, value, receiver) {
-    const oldValue = target[key];
+    const oldValue = target[key]; // 获取老的值
 
     let hadKey =
       isArray(target) && isIntegerKey(key)
         ? Number(key) < target.length
         : hasOwn(target, key);
 
-    const result = Reflect.set(target, key, value, receiver);
+    const result = Reflect.set(target, key, value, receiver); // target[key] = value
 
     if (!hadKey) {
       // 新增

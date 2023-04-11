@@ -6,4 +6,4 @@ declare module "*.vue" {
   export default component;
 }
 
-// declare module "@vue/*"
+// 定义所有以.vue文件结尾的类型

@@ -24,4 +24,3 @@ export function h(type, propsOrChildren, children) {
     return createVNode(type, propsOrChildren, children);
   }
 }
-

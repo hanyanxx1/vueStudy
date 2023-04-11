@@ -1,17 +1,20 @@
 <template>
-  <i :class="`z-icon-${name}`"></i>
+    <i :class="`z-icon-${name}`"></i>
 </template>
 
-<script lang="ts">
-import { defineComponent } from "vue";
+<script>
+import { defineComponent } from 'vue'
 
 export default defineComponent({
-  name: "ZIcon",
-  props: {
-    name: {
-      type: String,
-      default: "",
-    },
-  },
-});
+    name:'ZIcon',
+    props:{
+        name:{
+            type:String,
+            default:''
+        }
+    }
+})
 </script>
+
+
+

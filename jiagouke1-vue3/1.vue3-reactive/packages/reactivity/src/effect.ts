@@ -1,4 +1,4 @@
-import { isArray, isIntegerKey } from "@vue/shared";
+import { isArray, isIntegerKey } from "@vue/shared/src";
 import { TriggerOrTypes } from "./operators";
 
 export function effect(fn, options: any = {}) {
@@ -71,19 +71,10 @@ export function trigger(target, type, key?, newValue?, oldValue?) {
 
   // 1. 看修改的是不是数组的长度 因为改长度影响比较大
   if (key === "length" && isArray(target)) {
+    // 如果对应的长度 有依赖收集需要更新
     depsMap.forEach((dep, key) => {
       if (key === "length" || key > newValue) {
         // 如果更改的长度 小于收集的索引，那么这个索引也需要触发effect重新执行
-        /* 对应这种情况: let state = reactive({ name: "zf", age: 12, arr: [1, 2, 3] });
-        effect(() => {
-          console.log("1:", state.arr[2]);
-        });
-        effect(() => {
-          console.log("2:", state.arr.length);
-        });
-        setTimeout(() => {
-          state.arr.length = 1;
-        }, 1000); */
         add(dep);
       }
     });
@@ -91,10 +82,12 @@ export function trigger(target, type, key?, newValue?, oldValue?) {
     // 可能是对象
     if (key !== undefined) {
       // 这里肯定是修改， 不能是新增
-      add(depsMap.get(key)); // 如果是新增，depsMap找不到，add什么都不添加
+      add(depsMap.get(key)); // 如果是新增
     }
     // 如果修改数组中的 某一个索引 怎么办？
-    switch (type) {
+    switch (
+      type // 如果添加了一个索引就触发长度的更新
+    ) {
       case TriggerOrTypes.ADD:
         if (isArray(target) && isIntegerKey(key)) {
           add(depsMap.get("length"));

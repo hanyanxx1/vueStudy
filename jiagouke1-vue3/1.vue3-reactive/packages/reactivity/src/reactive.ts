@@ -5,7 +5,6 @@ import {
   readonlyHandlers,
   shallowReadonlyHandlers,
 } from "./baseHandlers";
-
 export function reactive(target) {
   return createReactiveObject(target, false, mutableHandlers);
 }

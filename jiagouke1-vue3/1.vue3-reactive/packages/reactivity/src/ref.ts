@@ -1,4 +1,4 @@
-import { hasChanged, isArray, isObject } from "@vue/shared";
+import { hasChanged, isArray, isObject } from "@vue/shared/src";
 import { track, trigger } from "./effect";
 import { TrackOpTypes, TriggerOrTypes } from "./operators";
 import { reactive } from "./reactive";
@@ -21,8 +21,8 @@ const convert = (val) => (isObject(val) ? reactive(val) : val);
 class RefImpl {
   public _value; //表示 声明了一个_value属性 但是没有赋值
   public __v_isRef = true; // 产生的实例会被添加 __v_isRef 表示是一个ref属性
-  // 参数中前面增加修饰符 标识此属性放到了实例上
   constructor(public rawValue, public shallow) {
+    // 参数中前面增加修饰符 标识此属性放到了实例上
     this._value = shallow ? rawValue : convert(rawValue); // 如果是深度 需要把里面的都变成响应式的
   }
   // 类的属性访问器

@@ -11,7 +11,7 @@
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <div id="app"></div>
     <script>
-      let { effect, reactive, ref, shallowRef } = VueReactivity;
+      let { effect, reactive, ref, shallowRef, toRef } = VueReactivity;
       let name = ref("zf"); // 将普通的类型 转化成一个对象，这个对象中有value属性 指向原来的值
 
       effect(() => {

@@ -39,7 +39,6 @@ export function setupComponent(instance) {
     setupStatefulComponent(instance);
   }
 }
-
 export let currentInstance = null;
 export let setCurrentInstance = (instance) => {
   currentInstance = instance;

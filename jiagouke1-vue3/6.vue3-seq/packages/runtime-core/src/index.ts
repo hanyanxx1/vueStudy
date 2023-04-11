@@ -1,5 +1,13 @@
-export { createRenderer } from "./renderer";
+import {createRenderer} from './renderer'
+export {
+    createRenderer
+} from './renderer'
 
-export { h } from "./h";
+export {
+    h
+} from './h'
 
-export * from "@vue/reactivity";
+export * from '@vue/reactivity'
+
+
+

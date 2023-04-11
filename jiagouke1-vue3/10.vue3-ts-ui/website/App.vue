@@ -41,23 +41,22 @@
     </z-row>
   </div>
   <hr />
+  <!-- 组件内部 会去 emit('update:modelValue',[])   checkVal = []-->
   {{ checkVal }}
   <z-checkbox-group v-model="checkVal" @change="checkboxChange">
     <z-checkbox v-for="c in checks" :key="c" :label="c"></z-checkbox>
   </z-checkbox-group>
-  <z-transfer
-    v-model="rightValue"
-    :data="transferData"
-    :props="transferProp"
-  ></z-transfer>
+
+  <z-transfer v-model="rightValue" :data="transferData" :props="transferProp">
+  </z-transfer>
 </template>
 
-<script lang="ts">
-import { defineComponent, ref } from "vue";
+<script>
+import { defineComponent, reactive, ref } from "vue";
 import { useButton } from "./hook/useButton";
 import { useCheckbox } from "./hook/useCheckbox";
 function useTransfer() {
-  const generateData = () => {
+  const generateData = (_) => {
     const data = [];
     for (let i = 1; i <= 15; i++) {
       data.push({

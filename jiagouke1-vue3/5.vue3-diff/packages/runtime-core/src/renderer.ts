@@ -1,5 +1,5 @@
-import { effect } from "@vue/reactivity";
-import { ShapeFlags } from "@vue/shared";
+import { effect } from "@vue/reactivity/src";
+import { ShapeFlags } from "@vue/shared/src";
 import { createAppAPI } from "./apiCreateApp";
 import { createComponentInstance, setupComponent } from "./component";
 import { queueJob } from "./scheduler";
@@ -25,6 +25,7 @@ export function createRenderer(rendererOptions) {
     // 需要创建一个effect 在effect中调用 render方法，这样render方法中拿到的数据会收集这个effect，属性更新时effect会重新执行
     instance.update = effect(
       function componentEffect() {
+        // 每个组件都有一个effect， vue3 是组件级更新，数据变化会重新执行对应组件的effect
         if (!instance.isMounted) {
           // 初次渲染
           let proxyToUse = instance.proxy;
@@ -61,7 +62,7 @@ export function createRenderer(rendererOptions) {
     const instance = (initialVNode.component =
       createComponentInstance(initialVNode));
     // 2.需要的数据解析到实例上
-    setupComponent(instance);
+    setupComponent(instance); // state props attrs render ....
     // 3.创建一个effect 让render函数执行
     setupRenderEfect(instance, container);
   };
@@ -73,7 +74,7 @@ export function createRenderer(rendererOptions) {
       // 组件更新流程
     }
   };
-  // -------------------组件----------------------
+  // ------------------组件 ------------------
 
   //----------------- 处理元素-----------------
   const mountChildren = (children, container) => {
@@ -136,7 +137,6 @@ export function createRenderer(rendererOptions) {
       }
       i++;
     }
-
     // sync from end
     while (i <= e1 && i <= e2) {
       const n1 = c1[e1];
@@ -153,9 +153,11 @@ export function createRenderer(rendererOptions) {
     // common sequence + mount  有一方已经完全比对完成了
     // 比较后
     // 怎么确定是要挂载呢？
+
     // 如果完成后 最终i的值大于e1 说明老的少
+
     if (i > e1) {
-      // 老的少 新的多  有一方已经完全比对完成了
+      // 老的少 新的多   有一方已经完全比对完成了
       if (i <= e2) {
         // 表示有新增的部分
         const nextPos = e2 + 1;
@@ -182,7 +184,7 @@ export function createRenderer(rendererOptions) {
       const keyToNewIndexMap = new Map();
 
       for (let i = s2; i <= e2; i++) {
-        const childVNode = c2[i];
+        const childVNode = c2[i]; // child
         keyToNewIndexMap.set(childVNode.key, i);
       }
 
@@ -210,8 +212,8 @@ export function createRenderer(rendererOptions) {
     }
   };
   const patchChildren = (n1, n2, el) => {
-    const c1 = n1.children; // 老儿子
-    const c2 = n2.children; // 新儿子
+    const c1 = n1.children; // 新老儿子
+    const c2 = n2.children;
 
     // 老的有儿子 新的没儿子  新的有儿子老的没儿子  新老都有儿子  新老都是文本
 
@@ -223,7 +225,6 @@ export function createRenderer(rendererOptions) {
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         unmountChildren(c1); // 如果c1 中包含组件会调用组件的销毁方法
       }
-
       // 两个人都是文本情况
       if (c2 !== c1) {
         // case2：两个都是文本
@@ -287,6 +288,8 @@ export function createRenderer(rendererOptions) {
     return n1.type === n2.type && n1.key === n2.key;
   };
   const unmount = (n1) => {
+    // 如果是组件 调用的组件的生命周期等
+
     hostRemove(n1.el);
   };
   const patch = (n1, n2, container, anchor = null) => {
@@ -299,6 +302,7 @@ export function createRenderer(rendererOptions) {
       unmount(n1);
       n1 = null; // 重新渲染n2 对应的内容
     }
+
     switch (type) {
       case Text:
         processText(n1, n2, container);

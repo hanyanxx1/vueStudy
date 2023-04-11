@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
   </head>
+
   <body>
     <script src="../node_modules/@vue/reactivity/dist/reactivity.global.js"></script>
     <script>
@@ -13,7 +14,7 @@
         VueReactivity;
       let state = shallowReadonly({ name: "zf", age: { n: 12 } });
       state.age.n = 100;
-      console.log(state.age);
+      console.log();
     </script>
   </body>
 </html>
